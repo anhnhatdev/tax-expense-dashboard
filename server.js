@@ -84,8 +84,72 @@ const cache = {
   trendsTime: 0,
   missingBank: {},
   missingKho: {},
+  directExpenseCache: {},
+  directExpenseTime: {},
+  marketplaceCache: null,
+  marketplaceTime: 0,
 };
 const CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
+// Safe dynamic calculation for Direct Expenses (lv1 = 'Expense') across years
+async function getDynamicDirectExpense(year) {
+  const cacheKey = String(year);
+  const now = Date.now();
+  if (cache.directExpenseCache[cacheKey] && (now - (cache.directExpenseTime[cacheKey] || 0) < CACHE_TTL_MS)) {
+    return cache.directExpenseCache[cacheKey];
+  }
+
+  let url = 'v_chi_ngan_hang?lv1=eq.Expense&select=so_tien,co_chung_tu,ngay';
+  if (year && year !== 'all') {
+    url += `&ngay=gte.${year}-01-01T00:00:00Z&ngay=lt.${Number(year) + 1}-01-01T00:00:00Z`;
+  }
+
+  let allRows = [];
+  let offset = 0;
+  const limit = 1000;
+  while (true) {
+    const rows = await querySupabase(`${url}&offset=${offset}&limit=${limit}`, { schema: 'taxdoc' });
+    if (!Array.isArray(rows) || rows.length === 0) break;
+    allRows = allRows.concat(rows);
+    if (rows.length < limit) break;
+    offset += limit;
+  }
+
+  const total = allRows.reduce((sum, r) => sum + (Number(r.so_tien) || 0), 0);
+  const documented = allRows.reduce((sum, r) => sum + (r.co_chung_tu ? Number(r.so_tien) : 0), 0);
+  const result = {
+    total,
+    documented,
+    missing: Math.max(0, total - documented),
+    count: allRows.length
+  };
+
+  cache.directExpenseCache[cacheKey] = result;
+  cache.directExpenseTime[cacheKey] = now;
+  return result;
+}
+
+// Safe dynamic calculation for Marketplace/Freight fees (SPX Express & Sapo Express from F_Shipment_Wallet)
+async function getDynamicMarketplace() {
+  const now = Date.now();
+  if (cache.marketplaceCache && (now - cache.marketplaceTime < CACHE_TTL_MS)) {
+    return cache.marketplaceCache;
+  }
+
+  const rows = await querySupabase('mirror_lark?source_table=eq.F_Shipment_Wallet&limit=1000', { schema: 'taxdoc' });
+  const fees = (rows || []).filter(r => r.fields && r.fields['Loại giao dịch'] === 'Phí vận chuyển');
+  const total = fees.reduce((sum, r) => sum + Math.abs(Number(r.fields['Số tiền']) || 0), 0);
+  const result = {
+    total,
+    documented: 0,
+    missing: total,
+    count: fees.length
+  };
+
+  cache.marketplaceCache = result;
+  cache.marketplaceTime = now;
+  return result;
+}
 
 // Safe AR Dashboard query (single fetch with in-memory filtering to avoid timeouts)
 async function getCachedARCases() {
@@ -183,51 +247,25 @@ const server = http.createServer(async (req, res) => {
       const cogsMissing = Math.max(0, cogsTotal - cogsDocumented);
 
       // Nhóm 2: Direct Expenses from Bank (Meeting 3: lv1 = 'Expense' only, loại trừ COGS và luân chuyển nội bộ)
-      let directExpenseTotal = 0;
-      let directExpenseDoc = 0;
-      let directExpenseCount = 0;
+      const directData = await getDynamicDirectExpense(year);
+      const directExpenseTotal = directData.total;
+      const directExpenseDoc = directData.documented;
+      const directExpenseCount = directData.count;
+      const directExpenseMissing = directData.missing;
 
-      if (year === '2026') {
-        directExpenseTotal = 1718724294;
-        directExpenseDoc = 0;
-        directExpenseCount = 1419;
-      } else if (year === '2025') {
-        directExpenseTotal = 1284500000;
-        directExpenseDoc = 0;
-        directExpenseCount = 1120;
-      } else if (year === '2024') {
-        directExpenseTotal = 852100000;
-        directExpenseDoc = 0;
-        directExpenseCount = 890;
-      } else if (year === '2023') {
-        directExpenseTotal = 112500000;
-        directExpenseDoc = 0;
-        directExpenseCount = 120;
-      } else {
-        // 'all'
-        directExpenseTotal = 1718724294 + 1284500000 + 852100000 + 112500000;
-        directExpenseDoc = 0;
-        directExpenseCount = 1419 + 1120 + 890 + 120;
-      }
-      const directExpenseMissing = Math.max(0, directExpenseTotal - directExpenseDoc);
-
-      // Nhóm 3: Marketplace & SPX Express fees (Meeting 3: Gom hóa đơn tổng định kỳ theo tháng)
-      let marketplaceTotal = 0;
-      let marketplaceDoc = 0;
-      let marketplaceCount = 0;
-      if (year === '2026' || year === 'all') {
-        marketplaceTotal = 7259147;
-        marketplaceDoc = 0;
-        marketplaceCount = 403;
-      }
-      const marketplaceMissing = Math.max(0, marketplaceTotal - marketplaceDoc);
+      // Nhóm 3: Marketplace & SPX/Sapo Express fees (Meeting 3: Gom hóa đơn tổng định kỳ theo tháng)
+      const marketData = await getDynamicMarketplace();
+      const marketplaceTotal = (year === '2026' || year === 'all') ? marketData.total : 0;
+      const marketplaceDoc = (year === '2026' || year === 'all') ? marketData.documented : 0;
+      const marketplaceCount = (year === '2026' || year === 'all') ? marketData.count : 0;
+      const marketplaceMissing = (year === '2026' || year === 'all') ? marketData.missing : 0;
 
       // VIEW 1: 3 CHỈ SỐ CỐT LÕI (MEETING 3)
-      // 1. Tổng tiền giao dịch chi ra thực tế
+      // 1. Tổng giá trị Giao dịch
       const totalExpense = cogsTotal + directExpenseTotal + marketplaceTotal;
-      // 2. Tổng giá trị chứng từ đã có
+      // 2. Tổng giá trị chứng từ
       const documentedExpense = cogsDocumented + directExpenseDoc + marketplaceDoc;
-      // 3. Chênh lệch thiếu
+      // 3. Chênh lệch
       const missingExpense = Math.max(0, totalExpense - documentedExpense);
       const coverageRatio = totalExpense > 0 
         ? Number(((documentedExpense / totalExpense) * 100).toFixed(1)) 

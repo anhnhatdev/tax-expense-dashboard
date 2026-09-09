@@ -73,54 +73,54 @@
       </div>
     </section>
 
-    <!-- VIEW 1: BA CHỈ SỐ CỐT LÕI CỦA DASHBOARD (MEETING 3) -->
+    <!-- VIEW 1: BA CON SỐ CHỦ ĐẠO -->
     <section class="kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
-      <!-- Card 1: Tổng Tiền Giao Dịch Thực Tế -->
+      <!-- Card 1: Tổng giá trị Giao dịch -->
       <div class="kpi-card total">
         <div class="kpi-header">
-          <span class="kpi-title">1. Tổng Tiền Giao Dịch Chi Ra</span>
+          <span class="kpi-title">Tổng giá trị Giao dịch</span>
           <span class="kpi-icon-pill">THỰC CHI</span>
         </div>
         <div class="kpi-value num-tabular" id="kpi-total-expense">0 ₫</div>
         <div class="kpi-footer">
-          <span>Kho COGS + Chi phí trực tiếp + Cấn trừ sàn</span>
+          <span>Mua hàng (COGS) + Ngân hàng (Expense) + Thu hộ</span>
           <span class="kpi-pill pill-indigo" id="kpi-total-transactions">0 giao dịch</span>
         </div>
       </div>
 
-      <!-- Card 2: Tổng Giá Trị Đã Có Chứng Từ -->
+      <!-- Card 2: Tổng giá trị chứng từ -->
       <div class="kpi-card documented">
         <div class="kpi-header">
-          <span class="kpi-title">2. Tổng Giá Trị Đã Có Chứng Từ</span>
+          <span class="kpi-title">Tổng giá trị chứng từ</span>
           <span class="kpi-icon-pill">HỢP LỆ</span>
         </div>
         <div class="kpi-value num-tabular" id="kpi-documented-expense">0 ₫</div>
         <div class="kpi-footer">
-          <span>Đạt chuẩn quyết toán thuế</span>
+          <span>Hóa đơn GTGT & Hợp đồng điện tử</span>
           <span class="kpi-pill pill-emerald" id="kpi-coverage-badge">0% che phủ</span>
         </div>
       </div>
 
-      <!-- Card 3: Chênh Lệch Thiếu Cần Bổ Sung -->
+      <!-- Card 3: Chênh lệch -->
       <div class="kpi-card missing">
         <div class="kpi-header">
-          <span class="kpi-title">3. Chênh Lệch Thiếu Cần Bổ Sung</span>
+          <span class="kpi-title">Chênh lệch</span>
           <span class="kpi-icon-pill">CẦN XỬ LÝ</span>
         </div>
         <div class="kpi-value num-tabular" id="kpi-missing-expense">0 ₫</div>
         <div class="kpi-footer">
-          <span>Chưa có Hóa đơn / Hợp đồng</span>
+          <span>Chưa có chứng từ hợp lệ chứng minh</span>
           <span class="kpi-pill pill-rose" id="kpi-missing-percent">0% chi phí</span>
         </div>
       </div>
     </section>
 
-    <!-- VIEW 2: CƠ CẤU 3 NHÓM GIAO DỊCH LỚN (MEETING 3) -->
+    <!-- VIEW 2: PHÂN THEO NHÓM LỚN -->
     <section class="visual-section">
       <!-- Left: Tax Coverage Progress Gauge -->
       <div class="chart-card" style="flex: 1;">
-        <div class="chart-card-title">Tỷ Lệ Hoàn Tất Chứng Từ Thuế (Coverage Ratio)</div>
-        <div class="chart-card-desc">Tỷ trọng chi tiêu đã có Hóa đơn GTGT hoặc Hợp đồng giao khoán hợp pháp</div>
+        <div class="chart-card-title">Tỷ Lệ Hoàn Tất Chứng Từ Thuế</div>
+        <div class="chart-card-desc">Tỷ trọng chi tiêu đã có Hóa đơn GTGT hoặc Hợp đồng chứng minh</div>
         
         <div class="gauge-wrapper">
           <div class="gauge-canvas-container">
@@ -144,16 +144,16 @@
         </div>
       </div>
 
-      <!-- Right: Three Accounting Groups Breakdown -->
+      <!-- Right: Three Big Accounting Groups Breakdown -->
       <div class="chart-card" style="flex: 1.8;">
-        <div class="chart-card-title">Phân Bổ 3 Nhóm Nghiệp Vụ Kế Toán (Meeting 3)</div>
-        <div class="chart-card-desc">Bóc tách rõ ràng theo bản chất giao dịch để map chứng từ chính xác, không đếm trùng</div>
+        <div class="chart-card-title">View 2: Phân Theo Nhóm Lớn</div>
+        <div class="chart-card-desc">Bóc tách theo bản chất nghiệp vụ để map chứng từ, loại trừ hoàn toàn đếm trùng (Double-counting)</div>
 
         <div class="source-bars-grid">
-          <!-- Nhóm 1: Mua hàng kho (COGS) -->
+          <!-- Nhóm 1: Giao dịch mua hàng -->
           <div class="source-bar-item" id="card-group-cogs" style="cursor: pointer;" title="Nhấn để xem chi tiết Nhà cung cấp">
             <div class="source-bar-header">
-              <span>📦 <strong>Nhóm 1: Mua Hàng Kho (COGS)</strong> - Nguyên phụ liệu & Công may</span>
+              <span>📦 <strong>Giao dịch mua hàng</strong> (COGS: Mua hàng hóa tồn kho)</span>
               <span id="cogs-bar-amount" class="num-tabular" style="color: var(--accent-indigo);">0 ₫</span>
             </div>
             <div class="progress-bar-bg">
@@ -164,14 +164,14 @@
               <span>Còn thiếu: <strong id="cogs-missing-stat" class="num-tabular" style="color: var(--accent-rose);">0 ₫</strong> (<span id="cogs-count-stat">0</span> phiếu nhập)</span>
             </div>
             <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">
-              👉 Quy tắc: Map theo từng lần nhập của đích danh Nhà cung cấp (anh Huỳnh, anh Phương, chị Hoa...)
+              👉 Quy tắc: Map theo từng lần nhập kho của từng NCC cụ thể (anh Huỳnh, anh Phương, chị Hoa...)
             </div>
           </div>
 
-          <!-- Nhóm 2: Chi phí vận hành trực tiếp (Ngân hàng) -->
-          <div class="source-bar-item" id="card-group-direct" style="cursor: pointer;" title="Nhấn để xem các khoản chi trực tiếp">
+          <!-- Nhóm 2: Giao dịch ngân hàng (chi phí 1 lần) -->
+          <div class="source-bar-item" id="card-group-direct" style="cursor: pointer;" title="Nhấn để xem các khoản chi ngân hàng trực tiếp">
             <div class="source-bar-header">
-              <span>🏦 <strong>Nhóm 2: Chi Phí Vận Hành Trực Tiếp</strong> - Văn phòng, marketing, bao bì</span>
+              <span>🏦 <strong>Giao dịch ngân hàng (chi phí 1 lần)</strong> - Tập trung nhóm Expense</span>
               <span id="direct-bar-amount" class="num-tabular" style="color: var(--accent-rose);">0 ₫</span>
             </div>
             <div class="progress-bar-bg">
@@ -182,14 +182,14 @@
               <span>Còn thiếu: <strong id="direct-missing-stat" class="num-tabular" style="color: var(--accent-rose);">0 ₫</strong> (<span id="direct-count-stat">0</span> giao dịch)</span>
             </div>
             <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">
-              👉 Quy tắc: Map trực tiếp HĐ vào giao dịch ngân hàng (loại trừ lệnh trả nợ COGS và vốn nội bộ)
+              👉 Quy tắc: Map trực tiếp vào dòng ngân hàng này (đã loại trừ 100% trả nợ kho và luân chuyển vốn)
             </div>
           </div>
 
-          <!-- Nhóm 3: Dịch vụ sàn & vận chuyển -->
-          <div class="source-bar-item" id="card-group-market" style="cursor: pointer;" title="Nhấn để xem cấn trừ sàn">
+          <!-- Nhóm 3: Giao dịch Thu hộ (Shopee, TikTok Shop, SPX Express, Sapo Express, …) -->
+          <div class="source-bar-item" id="card-group-market" style="cursor: pointer;" title="Nhấn để xem đối soát thu hộ">
             <div class="source-bar-header">
-              <span>🚚 <strong>Nhóm 3: Chi Phí Dịch Vụ Sàn & Vận Chuyển</strong> - SPX Express, Shopee, TikTok</span>
+              <span>🚚 <strong>Giao dịch Thu hộ</strong> (Shopee, TikTok Shop, SPX Express, Sapo Express, …)</span>
               <span id="market-bar-amount" class="num-tabular" style="color: #38BDF8;">0 ₫</span>
             </div>
             <div class="progress-bar-bg">
@@ -197,49 +197,49 @@
             </div>
             <div class="source-bar-stats">
               <span>Cấn trừ tự động: <strong id="market-count-stat">0</strong> bản ghi</span>
-              <span>Đối soát theo: <strong style="color: #38BDF8;">Hóa đơn dịch vụ tổng định kỳ tháng</strong></span>
+              <span>Phương thức: <strong style="color: #38BDF8;">Hóa đơn dịch vụ tổng định kỳ từng kỳ/tháng</strong></span>
             </div>
             <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">
-              👉 Quy tắc: Không map đơn lẻ; gom và đối chiếu hóa đơn tổng từng kỳ/tháng từ SPX/Sàn
+              👉 Quy tắc: Tạm thời chưa chia nhỏ hơn; gom và đối soát theo hóa đơn tổng tháng từ SPX/Sapo/Sàn
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- VIEW 3: ACTION HUB - DRILL-DOWN HÀNH ĐỘNG (MEETING 3) -->
+    <!-- VIEW 3: PHÂN NHÓM NHỎ HƠN (ACTION HUB) -->
     <section class="action-hub">
       <div class="action-hub-header">
         <div class="hub-title-row">
           <div class="hub-title">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            Trung Tâm Xử Lý Nghiệp Vụ ("Nhìn Là Phải Biết Hành Động")
+            View 3: Phân Nhóm Nhỏ Hơn & Hành Động Đối Soát
           </div>
           <div style="font-size: 12.5px; color: var(--text-secondary);" id="hub-summary-text">
-            Đang tải dữ liệu trực tiếp...
+            Đang tải dữ liệu trực tiếp từ Supabase...
           </div>
         </div>
         
         <!-- Tabs Navigation (Meeting 3) -->
         <nav class="tabs-nav" role="tablist">
           <button class="tab-btn active" id="tab-btn-suppliers" data-tab="suppliers">
-            <span>🏢 Đích Danh Nhà Cung Cấp Mua Hàng</span>
+            <span>A. Mua Hàng: Theo Nhà Cung Cấp</span>
             <span class="tab-badge badge-indigo" id="badge-suppliers-count">Top NCC</span>
           </button>
 
+          <button class="tab-btn" id="tab-btn-marketplace" data-tab="marketplace">
+            <span>B. Giao Dịch Thu Hộ (SPX, Sapo, Sàn)</span>
+            <span class="tab-badge badge-sky" id="badge-market-count">Chưa chia nhỏ</span>
+          </button>
+
           <button class="tab-btn" id="tab-btn-direct" data-tab="direct">
-            <span>🚨 Chi Phí Vận Hành Trực Tiếp Chưa HĐ</span>
+            <span>C. Ngân Hàng: Nhóm Expense</span>
             <span class="tab-badge badge-rose" id="badge-direct-count">...</span>
           </button>
 
           <button class="tab-btn" id="tab-btn-cogs-items" data-tab="cogs_items">
-            <span>📦 Phiếu Nhập Kho Cần Chứng Từ</span>
+            <span>📦 Phiếu Nhập Kho COGS</span>
             <span class="tab-badge badge-amber" id="badge-cogs-count">...</span>
-          </button>
-
-          <button class="tab-btn" id="tab-btn-marketplace" data-tab="marketplace">
-            <span>🚚 Đối Soát Phí Sàn & Vận Chuyển (Tháng)</span>
-            <span class="tab-badge badge-sky" id="badge-market-count">SPX</span>
           </button>
 
           <button class="tab-btn" id="tab-btn-misa" data-tab="misa">
