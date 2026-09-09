@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: tax-expense-dashboard
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        value: https://ixxrefjiirhdzgwtbcvu.supabase.co
+      - key: SUPABASE_SERVICE_KEY
+        value: your_supabase_service_role_key_here
