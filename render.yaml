@@ -13,4 +13,4 @@ services:
       - key: SUPABASE_URL
         value: https://ixxrefjiirhdzgwtbcvu.supabase.co
       - key: SUPABASE_SERVICE_KEY
-        value: your_supabase_service_role_key_here
+        sync: false

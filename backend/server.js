@@ -30,7 +30,10 @@ if (fs.existsSync(envPath)) {
 
 const PORT = process.env.PORT || 3000;
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://ixxrefjiirhdzgwtbcvu.supabase.co';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'your_supabase_service_role_key_here';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || '';
+if (!SUPABASE_SERVICE_KEY && process.env.NODE_ENV !== 'test') {
+  console.warn('⚠️ WARNING: SUPABASE_SERVICE_KEY is not defined. Please set it in .env or environment variables.');
+}
 
 // MIME types for static server
 const MIME_TYPES = {
