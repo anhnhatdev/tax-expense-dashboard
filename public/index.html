@@ -3,424 +3,349 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tax & Expense Control Portal - Verdency / Onesie</title>
-  <meta name="description" content="Hệ thống kiểm soát hóa đơn đầu vào, giám sát chi phí và đối soát dòng tiền vận hành thương mại điện tử.">
-  
-  <!-- Modern Google Fonts -->
+  <title>Đối chiếu Giao dịch – Chứng từ | Tax & Expense Portal</title>
+  <meta name="description" content="Hệ thống đối chiếu giao dịch dòng tiền và chứng từ thuế theo 3 View kế toán chuẩn mực.">
+
+  <!-- Classic Typographic & Editorial Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
-  
-  <!-- Chart.js CDN for Gauge & Trend Charts -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,380;9..144,480;9..144,560;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
-  <!-- Enterprise Stylesheet -->
+  <!-- Editorial Swiss Ledger Stylesheet -->
   <link rel="stylesheet" href="/css/dashboard.css">
 </head>
 <body>
 
-  <div class="dashboard-container">
+<div class="wrap">
 
-    <!-- TOP HEADER -->
-    <header class="header-top">
-      <div class="brand-section">
-        <div class="brand-logo">V</div>
-        <div>
-          <div class="brand-title">
-            ONESIE / VERDENCY MANAGEMENT PORTAL
-            <span class="brand-badge">CHUẨN HÓA MEETING 3</span>
-          </div>
-          <div class="brand-subtitle">Kiến Trúc Dữ Liệu Settlement, Đồng Bộ MISA & Chuẩn Hóa Đối Soát Chứng Từ Thuế</div>
-        </div>
+  <!-- ========================================================================= -->
+  <!-- HEADER & CONTROLS -->
+  <!-- ========================================================================= -->
+  <header class="top">
+    <div class="brand-block">
+      <div class="brand-eyebrow">
+        <span class="pulse-dot"></span>
+        <span>VERDENCY / ONESIE FINANCIAL ENGINE · SUPABASE LIVE</span>
+      </div>
+      <h1>Đối chiếu Giao dịch – Chứng từ</h1>
+      <p id="header-subtitle">Kỳ báo cáo: Năm 2026 · Cập nhật thời gian thực từ Supabase & Lark Base</p>
+    </div>
+    
+    <div class="controls">
+      <div class="control-select-wrap">
+        <select id="select-year" class="control">
+          <option value="2026" selected>Năm 2026 (Hiện hành)</option>
+          <option value="2025">Năm 2025</option>
+          <option value="2024">Năm 2024</option>
+          <option value="all">Toàn bộ các năm</option>
+        </select>
+        <span class="caret">▾</span>
       </div>
 
-      <div class="header-actions">
-        <div class="live-status">
-          <div class="status-dot"></div>
-          <span>Supabase Live: <strong>ixxrefjiirhdzgwtbcvu</strong></span>
-        </div>
-
-        <div class="year-selector">
-          <label for="select-year">Kỳ kế toán:</label>
-          <select id="select-year">
-            <option value="2026" selected>Năm 2026 (Hiện hành)</option>
-            <option value="2025">Năm 2025</option>
-            <option value="2024">Năm 2024</option>
-            <option value="all">Toàn bộ các năm</option>
-          </select>
-        </div>
-
-        <button id="btn-export-csv" class="btn-header" title="Xuất file Excel CSV">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Xuất Báo Cáo
-        </button>
-
-        <button id="btn-refresh" class="btn-header btn-header-primary" title="Làm mới dữ liệu từ Supabase">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-          Đồng Bộ
-        </button>
-      </div>
-    </header>
-
-    <!-- ACCOUNTING LAW & BALANCE PRINCIPLE BANNER (MEETING 3) -->
-    <section class="formula-banner">
-      <div class="formula-text">
-        <span>⚖️ <strong>Nguyên tắc Phân loại Kế toán (Meeting 3):</strong></span>
-        <span class="formula-highlight">Kho COGS (theo NCC) ⟷ Chi Phí Trực Tiếp (Ngân hàng) ⟷ Dịch Vụ Sàn (HĐ Tổng Tháng)</span>
-      </div>
-      <div class="formula-warning">
-        Triệt tiêu 100% lỗi đếm trùng (Double-count): Loại trừ lệnh trả nợ COGS và luân chuyển vốn nội bộ khỏi sao kê ngân hàng.
-      </div>
-    </section>
-
-    <!-- VIEW 1: BA CON SỐ CHỦ ĐẠO -->
-    <section class="kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
-      <!-- Card 1: Tổng giá trị Giao dịch -->
-      <div class="kpi-card total">
-        <div class="kpi-header">
-          <span class="kpi-title">Tổng giá trị Giao dịch</span>
-          <span class="kpi-icon-pill">THỰC CHI</span>
-        </div>
-        <div class="kpi-value num-tabular" id="kpi-total-expense">0 ₫</div>
-        <div class="kpi-footer">
-          <span>Mua hàng (COGS) + Ngân hàng (Expense) + Thu hộ</span>
-          <span class="kpi-pill pill-indigo" id="kpi-total-transactions">0 giao dịch</span>
-        </div>
+      <div class="control-select-wrap">
+        <select id="select-group-filter" class="control">
+          <option value="all" selected>Tất cả nhóm giao dịch</option>
+          <option value="cogs">Mua hàng (COGS Kho)</option>
+          <option value="direct">Ngân hàng (Chi phí 1 lần)</option>
+          <option value="marketplace">Thu hộ (Marketplace COD)</option>
+        </select>
+        <span class="caret">▾</span>
       </div>
 
-      <!-- Card 2: Tổng giá trị chứng từ -->
-      <div class="kpi-card documented">
-        <div class="kpi-header">
-          <span class="kpi-title">Tổng giá trị chứng từ</span>
-          <span class="kpi-icon-pill">HỢP LỆ</span>
-        </div>
-        <div class="kpi-value num-tabular" id="kpi-documented-expense">0 ₫</div>
-        <div class="kpi-footer">
-          <span>Hóa đơn GTGT & Hợp đồng điện tử</span>
-          <span class="kpi-pill pill-emerald" id="kpi-coverage-badge">0% che phủ</span>
-        </div>
+      <button id="btn-export-csv" class="control primary">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Xuất báo cáo
+      </button>
+
+      <button id="btn-refresh" class="control" title="Làm mới dữ liệu">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        Đồng bộ
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- VIEW 1 — BA CON SỐ CHỦ ĐẠO (LEDGER STRIP) -->
+  <!-- ========================================================================= -->
+  <section class="hero">
+    <div class="hero-grid">
+      <!-- 1. Tổng giá trị giao dịch -->
+      <div class="kpi">
+        <p class="label">Tổng giá trị giao dịch</p>
+        <p class="value" id="kpi-total-expense">4.305.691.270 ₫</p>
+        <p class="sub" id="kpi-total-transactions">3.305 giao dịch thực chi</p>
       </div>
 
-      <!-- Card 3: Chênh lệch -->
-      <div class="kpi-card missing">
-        <div class="kpi-header">
-          <span class="kpi-title">Chênh lệch</span>
-          <span class="kpi-icon-pill">CẦN XỬ LÝ</span>
-        </div>
-        <div class="kpi-value num-tabular" id="kpi-missing-expense">0 ₫</div>
-        <div class="kpi-footer">
-          <span>Chưa có chứng từ hợp lệ chứng minh</span>
-          <span class="kpi-pill pill-rose" id="kpi-missing-percent">0% chi phí</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- VIEW 2: PHÂN THEO NHÓM LỚN -->
-    <section class="visual-section">
-      <!-- Left: Tax Coverage Progress Gauge -->
-      <div class="chart-card" style="flex: 1;">
-        <div class="chart-card-title">Tỷ Lệ Hoàn Tất Chứng Từ Thuế</div>
-        <div class="chart-card-desc">Tỷ trọng chi tiêu đã có Hóa đơn GTGT hoặc Hợp đồng chứng minh</div>
-        
-        <div class="gauge-wrapper">
-          <div class="gauge-canvas-container">
-            <canvas id="gaugeChart"></canvas>
-            <div class="gauge-center-text">
-              <div class="gauge-pct num-tabular" id="gauge-center-pct">0%</div>
-              <div class="gauge-label">Hoàn Thành</div>
-            </div>
-          </div>
-
-          <div class="gauge-legend">
-            <div class="legend-item">
-              <span><span class="legend-color green"></span> Đã có chứng từ:</span>
-              <strong class="num-tabular" id="legend-documented">0 ₫</strong>
-            </div>
-            <div class="legend-item">
-              <span><span class="legend-color red"></span> Chênh lệch thiếu:</span>
-              <strong class="num-tabular" id="legend-missing">0 ₫</strong>
-            </div>
-          </div>
-        </div>
+      <!-- 2. Tổng giá trị chứng từ -->
+      <div class="kpi">
+        <p class="label">Tổng giá trị chứng từ</p>
+        <p class="value ct-color" id="kpi-documented-expense">1.422.969.764 ₫</p>
+        <p class="sub" id="kpi-coverage-badge">1.207 chứng từ hợp lệ (33,05%)</p>
       </div>
 
-      <!-- Right: Three Big Accounting Groups Breakdown -->
-      <div class="chart-card" style="flex: 1.8;">
-        <div class="chart-card-title">View 2: Phân Theo Nhóm Lớn</div>
-        <div class="chart-card-desc">Bóc tách theo bản chất nghiệp vụ để map chứng từ, loại trừ hoàn toàn đếm trùng (Double-counting)</div>
-
-        <div class="source-bars-grid">
-          <!-- Nhóm 1: Giao dịch mua hàng -->
-          <div class="source-bar-item" id="card-group-cogs" style="cursor: pointer;" title="Nhấn để xem chi tiết Nhà cung cấp">
-            <div class="source-bar-header">
-              <span>📦 <strong>Giao dịch mua hàng</strong> (COGS: Mua hàng hóa tồn kho)</span>
-              <span id="cogs-bar-amount" class="num-tabular" style="color: var(--accent-indigo);">0 ₫</span>
-            </div>
-            <div class="progress-bar-bg">
-              <div class="progress-bar-fill" id="cogs-progress-fill" style="width: 0%;"></div>
-            </div>
-            <div class="source-bar-stats">
-              <span>Đã có HĐ: <strong id="cogs-doc-stat" class="num-tabular" style="color: var(--accent-emerald);">0 ₫</strong></span>
-              <span>Còn thiếu: <strong id="cogs-missing-stat" class="num-tabular" style="color: var(--accent-rose);">0 ₫</strong> (<span id="cogs-count-stat">0</span> phiếu nhập)</span>
-            </div>
-            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">
-              👉 Quy tắc: Map theo từng lần nhập kho của từng NCC cụ thể (anh Huỳnh, anh Phương, chị Hoa...)
-            </div>
-          </div>
-
-          <!-- Nhóm 2: Giao dịch ngân hàng (chi phí 1 lần) -->
-          <div class="source-bar-item" id="card-group-direct" style="cursor: pointer;" title="Nhấn để xem các khoản chi ngân hàng trực tiếp">
-            <div class="source-bar-header">
-              <span>🏦 <strong>Giao dịch ngân hàng (chi phí 1 lần)</strong> - Tập trung nhóm Expense</span>
-              <span id="direct-bar-amount" class="num-tabular" style="color: var(--accent-rose);">0 ₫</span>
-            </div>
-            <div class="progress-bar-bg">
-              <div class="progress-bar-fill danger" id="direct-progress-fill" style="width: 0%;"></div>
-            </div>
-            <div class="source-bar-stats">
-              <span>Đã có HĐ: <strong id="direct-doc-stat" class="num-tabular" style="color: var(--accent-emerald);">0 ₫</strong></span>
-              <span>Còn thiếu: <strong id="direct-missing-stat" class="num-tabular" style="color: var(--accent-rose);">0 ₫</strong> (<span id="direct-count-stat">0</span> giao dịch)</span>
-            </div>
-            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">
-              👉 Quy tắc: Map trực tiếp vào dòng ngân hàng này (đã loại trừ 100% trả nợ kho và luân chuyển vốn)
-            </div>
-          </div>
-
-          <!-- Nhóm 3: Giao dịch Thu hộ (Shopee, TikTok Shop, SPX Express, Sapo Express, …) -->
-          <div class="source-bar-item" id="card-group-market" style="cursor: pointer;" title="Nhấn để xem đối soát thu hộ">
-            <div class="source-bar-header">
-              <span>🚚 <strong>Giao dịch Thu hộ</strong> (Shopee, TikTok Shop, SPX Express, Sapo Express, …)</span>
-              <span id="market-bar-amount" class="num-tabular" style="color: #38BDF8;">0 ₫</span>
-            </div>
-            <div class="progress-bar-bg">
-              <div class="progress-bar-fill" id="market-progress-fill" style="width: 0%; background: #38BDF8;"></div>
-            </div>
-            <div class="source-bar-stats">
-              <span>Cấn trừ tự động: <strong id="market-count-stat">0</strong> bản ghi</span>
-              <span>Phương thức: <strong style="color: #38BDF8;">Hóa đơn dịch vụ tổng định kỳ từng kỳ/tháng</strong></span>
-            </div>
-            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">
-              👉 Quy tắc: Tạm thời chưa chia nhỏ hơn; gom và đối soát theo hóa đơn tổng tháng từ SPX/Sapo/Sàn
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- VIEW 3: PHÂN NHÓM NHỎ HƠN (ACTION HUB) -->
-    <section class="action-hub">
-      <div class="action-hub-header">
-        <div class="hub-title-row">
-          <div class="hub-title">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            View 3: Phân Nhóm Nhỏ Hơn & Hành Động Đối Soát
-          </div>
-          <div style="font-size: 12.5px; color: var(--text-secondary);" id="hub-summary-text">
-            Đang tải dữ liệu trực tiếp từ Supabase...
-          </div>
-        </div>
-        
-        <!-- Tabs Navigation (Meeting 3) -->
-        <nav class="tabs-nav" role="tablist">
-          <button class="tab-btn active" id="tab-btn-suppliers" data-tab="suppliers">
-            <span>A. Mua Hàng: Theo Nhà Cung Cấp</span>
-            <span class="tab-badge badge-indigo" id="badge-suppliers-count">Top NCC</span>
-          </button>
-
-          <button class="tab-btn" id="tab-btn-marketplace" data-tab="marketplace">
-            <span>B. Giao Dịch Thu Hộ (SPX, Sapo, Sàn)</span>
-            <span class="tab-badge badge-sky" id="badge-market-count">Chưa chia nhỏ</span>
-          </button>
-
-          <button class="tab-btn" id="tab-btn-direct" data-tab="direct">
-            <span>C. Ngân Hàng: Nhóm Expense</span>
-            <span class="tab-badge badge-rose" id="badge-direct-count">...</span>
-          </button>
-
-          <button class="tab-btn" id="tab-btn-cogs-items" data-tab="cogs_items">
-            <span>📦 Phiếu Nhập Kho COGS</span>
-            <span class="tab-badge badge-amber" id="badge-cogs-count">...</span>
-          </button>
-
-          <button class="tab-btn" id="tab-btn-misa" data-tab="misa">
-            <span>⚡ Lô Đồng Bộ MISA (Batch 100-500)</span>
-            <span class="tab-badge badge-emerald" id="badge-misa-count">Flagging</span>
-          </button>
-        </nav>
-      </div>
-
-      <!-- FILTER CONTROLS BAR -->
-      <div class="filter-bar" id="filter-bar">
-        <div class="search-box">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          <input type="text" id="input-search" placeholder="Tìm theo đối tác, nội dung ủy nhiệm chi, mã đơn, vận đơn...">
-        </div>
-
-        <div class="filter-group">
-          <!-- Source Filter (For Tab 1) -->
-          <select id="filter-source" class="filter-select">
-            <option value="all">Tất cả nguồn chi</option>
-            <option value="bank">Chỉ sao kê Ngân hàng (F_Bank)</option>
-            <option value="inventory">Chỉ Mua hàng nhập kho (M_Inventory)</option>
-          </select>
-
-          <!-- Min Amount Filter (For Tab 1) -->
-          <select id="filter-min-amount" class="filter-select">
-            <option value="0">Tất cả hạn mức</option>
-            <option value="5000000">Từ 5.000.000 ₫</option>
-            <option value="20000000">Ưu tiên lớn: Từ 20.000.000 ₫</option>
-            <option value="50000000">Trọng điểm: Từ 50.000.000 ₫</option>
-          </select>
-
-          <!-- Channel Filter (For Tabs 3, 4, 5) -->
-          <select id="filter-channel" class="filter-select" style="display: none;">
-            <option value="all">Tất cả kênh bán</option>
-            <option value="shopee">Kênh Shopee</option>
-            <option value="tiktok">Kênh TikTok Shop</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- TABLE CONTAINER -->
-      <div class="table-responsive">
-        <table class="data-table" id="main-table">
-          <thead id="table-head">
-            <!-- Populated dynamically per tab -->
-          </thead>
-          <tbody id="table-body">
-            <tr>
-              <td colspan="7" style="text-align: center; padding: 45px; color: var(--text-muted);">
-                Đang nạp dữ liệu kế toán từ Supabase...
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- PAGINATION FOOTER -->
-      <div class="pagination-footer" id="pagination-bar">
-        <span id="pagination-info">Đang tải dữ liệu...</span>
-        <div class="pagination-controls">
-          <button class="page-btn" id="btn-prev-page" disabled>‹</button>
-          <span style="font-size: 13px; font-weight: 600; padding: 4px 12px;" id="page-display">Trang 1</span>
-          <button class="page-btn" id="btn-next-page" disabled>›</button>
-        </div>
-      </div>
-    </section>
-
-  </div>
-
-  <!-- MODAL: GÁN HÓA ĐƠN GTGT (LINK INVOICE) -->
-  <div class="modal-overlay" id="modal-link-invoice">
-    <div class="modal-box">
-      <div class="modal-header">
-        <div class="modal-title">📄 Ghép Hóa Đơn GTGT Cho Khoản Chi</div>
-        <button class="btn-close" id="btn-close-modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 16px;">
-          <div style="font-size: 12px; color: var(--text-muted);">Khoản chi đang chọn:</div>
-          <div style="font-weight: 700; font-size: 14.5px; margin-top: 4px; color: #FFFFFF;" id="modal-txn-desc">...</div>
-          <div style="font-size: 18px; color: var(--accent-rose); font-weight: 800;" class="num-tabular" id="modal-txn-amount">0 ₫</div>
-        </div>
-
-        <div class="search-box" style="width: 100%; margin-bottom: 14px;">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          <input type="text" id="modal-search-invoice" placeholder="Tìm số hóa đơn, ký hiệu hoặc tên đơn vị phát hành...">
-        </div>
-
-        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">
-          Hóa đơn GTGT điện tử sẵn có từ cổng Thuế GDT (taxdoc.document):
-        </div>
-
-        <div id="modal-invoice-list" style="max-height: 280px; overflow-y: auto;">
-          <!-- Invoices populated dynamically -->
-        </div>
-
-        <!-- Matching Delta Box -->
-        <div id="modal-matching-delta" style="display: none; margin-top: 14px; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px;">
-          <!-- Populated when invoice selected -->
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-header" id="btn-cancel-link">Hủy</button>
-        <button class="btn-header btn-header-primary" id="btn-confirm-link" disabled>Xác Nhận Ghép Cặp</button>
+      <!-- 3. Chênh lệch -->
+      <div class="kpi diff">
+        <p class="label">Chênh lệch thiếu chứng từ</p>
+        <p class="value" id="kpi-missing-expense">
+          +2.882.721.506 ₫ 
+          <span class="delta-pill" id="kpi-missing-percent">66,95%</span>
+        </p>
+        <p class="note" id="kpi-missing-note">Giao dịch chưa có chứng từ đối ứng — cần rà soát bổ sung hóa đơn</p>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- MODAL: LẬP HỢP ĐỒNG ĐIỆN TỬ (E-CONTRACT) -->
-  <div class="modal-overlay" id="modal-create-contract">
-    <div class="modal-box">
-      <div class="modal-header">
-        <div class="modal-title">✍️ Khởi Tạo Hợp Đồng Dịch Vụ / Gia Công May</div>
-        <button class="btn-close" id="btn-close-contract-modal">&times;</button>
+  <!-- ========================================================================= -->
+  <!-- VIEW 2 — PHÂN THEO NHÓM LỚN -->
+  <!-- ========================================================================= -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <h2>Phân theo nhóm lớn</h2>
+        <div class="hint">So sánh giá trị giao dịch và chứng từ đối ứng theo 3 nhóm cấu trúc</div>
       </div>
-      <div class="modal-body">
-        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
-          Áp dụng cho các khoản chi cá nhân (thợ may gia công, sửa quần, dịch vụ livestream) không xuất được hóa đơn GTGT để hợp thức hóa chứng từ kế toán thuế.
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 12px;">
-          <div>
-            <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">Mẫu hợp đồng áp dụng:</label>
-            <select id="contract-template-select" class="filter-select" style="width: 100%;">
-              <option value="labor">Hợp đồng giao khoán may mặc / hoàn thiện sản phẩm</option>
-              <option value="service">Hợp đồng thuê dịch vụ truyền thông / Livestream cá nhân</option>
-              <option value="repairs">Hợp đồng dịch vụ sửa chữa / gia công bao bì phụ liệu</option>
-            </select>
-          </div>
-
-          <div>
-            <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">Đối tác / Thợ nhận thanh toán:</label>
-            <input type="text" id="contract-party-name" class="filter-select" style="width: 100%; color: #FFFFFF;" readonly>
-          </div>
-
-          <div>
-            <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">Giá trị thù lao (VNĐ):</label>
-            <input type="text" id="contract-amount" class="filter-select" style="width: 100%; color: #FFFFFF; font-weight: 700;" readonly>
-          </div>
-
-          <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; color: #A7F3D0;">
-            Hệ thống sẽ tự động sinh liên kết ký điện tử không cần OTP để đối tác ký xác nhận trên điện thoại.
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-header" id="btn-cancel-contract">Đóng</button>
-        <button class="btn-header btn-header-primary" id="btn-submit-contract">Tạo & Sao Chép Link Ký</button>
+      <div class="legend-inline">
+        <span><span class="dot gd"></span>Giá trị giao dịch (GD)</span>
+        <span><span class="dot ct"></span>Giá trị chứng từ (CT)</span>
       </div>
     </div>
-  </div>
 
-  <!-- MODAL: KHIẾU NẠI SÀN TMĐT (DISPUTE TICKET) -->
-  <div class="modal-overlay" id="modal-dispute-ticket">
-    <div class="modal-box">
-      <div class="modal-header">
-        <div class="modal-title">📋 Văn Bản Khiếu Nại Sàn Giữ Tiền Quá Hạn</div>
-        <button class="btn-close" id="btn-close-dispute-modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 14px;">
-          Nội dung đã được chuẩn hóa theo quy chuẩn Seller Support Center. Bấm <strong>Sao Chép Văn Bản</strong> để dán trực tiếp vào cổng hỗ trợ sàn.
+    <div class="group-list">
+      <!-- Nhóm 1: Giao dịch mua hàng (COGS) -->
+      <div class="group-row" id="row-group-cogs" onclick="switchTab('suppliers')">
+        <div class="group-name">
+          <span class="n">Giao dịch mua hàng</span>
+          <span class="tag">GROUP · COGS / KHO HÀNG TỒN</span>
         </div>
-
-        <textarea id="dispute-text-content" style="width: 100%; height: 180px; background: #080C15; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: #F1F5F9; padding: 12px; font-family: 'Inter', sans-serif; font-size: 12.5px; line-height: 1.6; resize: none; outline: none;"></textarea>
+        <div class="bar-compare">
+          <div class="bar-row">
+            <span class="bl">GD</span>
+            <div class="bar-track"><div class="bar-fill gd" id="cogs-bar-gd" style="width:100%"></div></div>
+          </div>
+          <div class="bar-row">
+            <span class="bl">CT</span>
+            <div class="bar-track"><div class="bar-fill ct" id="cogs-bar-ct" style="width:46.8%"></div></div>
+          </div>
+        </div>
+        <div class="amounts">
+          <div class="gd-a" id="cogs-amount-gd">2.579.707.829 ₫</div>
+          <div class="ct-a" id="cogs-amount-ct">1.206.985.470 ₫</div>
+        </div>
+        <div class="diff-cell neg" id="cogs-diff-cell">+1.372.722.359</div>
       </div>
-      <div class="modal-footer">
-        <button class="btn-header" id="btn-cancel-dispute">Đóng</button>
-        <button class="btn-header btn-header-primary" id="btn-copy-dispute">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-          Sao Chép Văn Bản
-        </button>
+
+      <!-- Nhóm 2: Giao dịch ngân hàng (Expense) -->
+      <div class="group-row" id="row-group-direct" onclick="switchTab('direct')">
+        <div class="group-name">
+          <span class="n">Giao dịch ngân hàng</span>
+          <span class="tag">GROUP · BANK / CHI PHÍ 1 LẦN</span>
+        </div>
+        <div class="bar-compare">
+          <div class="bar-row">
+            <span class="bl">GD</span>
+            <div class="bar-track"><div class="bar-fill gd" id="direct-bar-gd" style="width:100%"></div></div>
+          </div>
+          <div class="bar-row">
+            <span class="bl">CT</span>
+            <div class="bar-track"><div class="bar-fill ct" id="direct-bar-ct" style="width:12.6%"></div></div>
+          </div>
+        </div>
+        <div class="amounts">
+          <div class="gd-a" id="direct-amount-gd">1.718.724.294 ₫</div>
+          <div class="ct-a" id="direct-amount-ct">215.984.294 ₫</div>
+        </div>
+        <div class="diff-cell neg" id="direct-diff-cell">+1.502.740.000</div>
+      </div>
+
+      <!-- Nhóm 3: Giao dịch thu hộ (Marketplace COD) -->
+      <div class="group-row" id="row-group-market" onclick="switchTab('marketplace')">
+        <div class="group-name">
+          <span class="n">Giao dịch thu hộ</span>
+          <span class="tag">GROUP · MARKETPLACE COD / CẤN TRỪ VÍ</span>
+        </div>
+        <div class="bar-compare">
+          <div class="bar-row">
+            <span class="bl">GD</span>
+            <div class="bar-track"><div class="bar-fill gd" id="market-bar-gd" style="width:100%"></div></div>
+          </div>
+          <div class="bar-row">
+            <span class="bl">CT</span>
+            <div class="bar-track"><div class="bar-fill ct" id="market-bar-ct" style="width:0%"></div></div>
+          </div>
+        </div>
+        <div class="amounts">
+          <div class="gd-a" id="market-amount-gd">7.259.147 ₫</div>
+          <div class="ct-a" id="market-amount-ct">0 ₫</div>
+        </div>
+        <div class="diff-cell neg" id="market-diff-cell">+7.259.147</div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- TOAST CONTAINER -->
-  <div class="toast-container" id="toast-container"></div>
+  <!-- ========================================================================= -->
+  <!-- VIEW 3 — PHÂN NHÓM NHỎ HƠN (TABS & LEDGER DETAIL) -->
+  <!-- ========================================================================= -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <h2>Phân nhóm nhỏ hơn</h2>
+        <span class="hint">Chi tiết theo từng nhóm lớn — Bóc tách nhà cung cấp, chi phí ngân hàng và thu hộ</span>
+      </div>
 
-  <!-- Core Dashboard Javascript -->
-  <script src="/js/dashboard.js"></script>
+      <div class="filter-box">
+        <input type="text" id="input-search" placeholder="Tìm nhanh nhà cung cấp, nội dung chi..." class="search-input">
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="suppliers" id="tab-btn-suppliers">A. Mua hàng (Nhà cung cấp)</button>
+      <button class="tab-btn" data-tab="marketplace" id="tab-btn-marketplace">B. Thu hộ (Sàn & Vận chuyển)</button>
+      <button class="tab-btn" data-tab="direct" id="tab-btn-direct">C. Ngân hàng (Khoản mục Expense)</button>
+      <button class="tab-btn" data-tab="misa" id="tab-btn-misa">D. Đồng bộ MISA (Meeting 3)</button>
+    </div>
+
+    <!-- PANEL A: MUA HÀNG (NHÀ CUNG CẤP) -->
+    <div class="tab-panel active" id="panel-suppliers">
+      <table class="ledger">
+        <thead>
+          <tr>
+            <th style="width: 28%;">Nhà cung cấp / Xưởng may</th>
+            <th style="width: 18%;">Giá trị giao dịch (Kho)</th>
+            <th style="width: 18%;">Giá trị chứng từ</th>
+            <th style="width: 18%;">Chênh lệch thiếu</th>
+            <th style="width: 18%; text-align: center;">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-suppliers">
+          <!-- Dynamic populated from /api/suppliers -->
+          <tr><td colspan="5" style="text-align:center; padding:28px; color:var(--ink-faint);">Đang tải dữ liệu nhà cung cấp...</td></tr>
+        </tbody>
+      </table>
+
+      <div class="footnote">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <span><b>COGS</b> — Đánh dấu các giao dịch mua hàng hóa tồn kho (giá vốn hàng bán từ <code>M_Inventory Log</code>). Hệ thống đã tự động loại trừ các lệnh thanh toán nợ trên ngân hàng để triệt tiêu 100% lỗi đếm trùng (anti double-counting).</span>
+      </div>
+    </div>
+
+    <!-- PANEL B: THU HỘ (SÀN & VẬN CHUYỂN) -->
+    <div class="tab-panel" id="panel-marketplace">
+      <div class="simple-card">
+        <div class="row">
+          <span style="color:var(--ink-soft);font-size:14px;font-weight:500;">Tổng giá trị cấn trừ ví giao dịch</span>
+          <span style="font-family:'Fraunces',serif;font-size:22px;color:var(--blue);font-variant-numeric:tabular-nums;" id="market-card-gd">7.259.147 ₫</span>
+        </div>
+        <div class="row">
+          <span style="color:var(--ink-soft);font-size:14px;font-weight:500;">Tổng giá trị chứng từ hóa đơn dịch vụ</span>
+          <span style="font-family:'Fraunces',serif;font-size:22px;color:var(--teal);font-variant-numeric:tabular-nums;" id="market-card-ct">0 ₫</span>
+        </div>
+        <div class="row">
+          <span style="color:var(--ink-soft);font-size:14px;font-weight:500;">Chênh lệch chưa có hóa đơn cước</span>
+          <span style="font-family:'Fraunces',serif;font-size:22px;color:var(--rust);font-variant-numeric:tabular-nums;" id="market-card-diff">+7.259.147 ₫</span>
+        </div>
+
+        <div class="sub-breakdown">
+          <div class="sub-breakdown-title">Bóc tách theo đơn vị cấn trừ (403 giao dịch):</div>
+          <div class="sub-grid">
+            <div class="sub-item">
+              <span class="sub-name">Sapo Express (300 giao dịch)</span>
+              <span class="sub-val">6.072.147 ₫</span>
+            </div>
+            <div class="sub-item">
+              <span class="sub-name">SPX Express - Shopee (103 giao dịch)</span>
+              <span class="sub-val">1.187.000 ₫</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="platform-tags">
+          <span>Shopee COD</span>
+          <span>TikTok Shop Settlement</span>
+          <span>SPX Express</span>
+          <span>Sapo Express</span>
+          <span>Cấn trừ ví tự động</span>
+        </div>
+
+        <div class="pending-note">
+          <span class="sq"></span>
+          Tạm thời chưa chia nhỏ hơn theo từng đơn hàng lẻ — Đối soát định kỳ theo Hóa đơn dịch vụ vận chuyển tổng tháng từ hãng vận chuyển.
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL C: NGÂN HÀNG (CHI PHÍ 1 LẦN / EXPENSE) -->
+    <div class="tab-panel" id="panel-direct">
+      <div class="expense-focus">
+        <span class="chip">TẬP TRUNG NHÓM EXPENSE</span>
+        <span>Chi phí ngân hàng phát sinh một lần trong kỳ (1.419 giao dịch, đã loại trừ COGS, Thuế, Chia cổ tức, Rút tiền mặt)</span>
+      </div>
+
+      <table class="ledger">
+        <thead>
+          <tr>
+            <th style="width: 120px;">Ngày</th>
+            <th style="width: 25%;">Đơn vị / Đối tác thụ hưởng</th>
+            <th style="width: 20%;">Khoản mục chi phí</th>
+            <th style="width: 20%;">Số tiền chuyển</th>
+            <th style="width: 23%;">Nội dung giao dịch</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-direct">
+          <!-- Dynamic populated from /api/missing-docs?group=direct -->
+          <tr><td colspan="5" style="text-align:center; padding:28px; color:var(--ink-faint);">Đang tải danh sách chi phí ngân hàng...</td></tr>
+        </tbody>
+      </table>
+
+      <div class="pagination-bar" id="pagination-direct">
+        <button id="btn-prev-page" class="control" style="padding:6px 12px; font-size:12px;">« Trang trước</button>
+        <span id="page-indicator" style="font-size:12px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace;">Trang 1</span>
+        <button id="btn-next-page" class="control" style="padding:6px 12px; font-size:12px;">Trang sau »</button>
+      </div>
+    </div>
+
+    <!-- PANEL D: ĐỒNG BỘ MISA (MEETING 3) -->
+    <div class="tab-panel" id="panel-misa">
+      <div class="simple-card" style="margin-bottom: 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+          <div>
+            <div style="font-family:'Fraunces',serif; font-size:18px; color:var(--ink); font-weight:480;">
+              Kiến trúc đồng bộ MISA Batch Processing (Phần 1 Meeting 3)
+            </div>
+            <div style="font-size:13px; color:var(--ink-soft); margin-top:4px;">
+              Giải quyết tắc nghẽn dữ liệu: Thay vì quét toàn bộ 30.000 dòng, chỉ bốc các lô <code>WHERE misa_booking IS FALSE</code> để hạch toán.
+            </div>
+          </div>
+          <button class="control primary" id="btn-trigger-misa-batch" onclick="triggerMisaBatchBooking(100)">
+            ⚡ Hạch toán Lô 100 giao dịch vào MISA
+          </button>
+        </div>
+      </div>
+
+      <table class="ledger">
+        <thead>
+          <tr>
+            <th>Mã giao dịch</th>
+            <th>Kênh bán</th>
+            <th>Mã đơn hàng</th>
+            <th>Số tiền settlement</th>
+            <th>Thời điểm phát sinh</th>
+            <th>Trạng thái cờ MISA</th>
+            <th style="text-align:center;">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-misa">
+          <tr><td colspan="7" style="text-align:center; padding:28px; color:var(--ink-faint);">Đang tải lô settlement cần hạch toán...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container" class="toast-container"></div>
+
+<script src="/js/dashboard.js"></script>
 </body>
 </html>
