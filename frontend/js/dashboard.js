@@ -1,13 +1,12 @@
 /**
  * Tax & Expense Dashboard - Editorial Swiss Ledger Engine
  * Real-time data orchestration from Supabase & Lark Base
- * Aligned with Meeting 3: 3 Views & MISA Batch Synchronization
  */
 
 // Application Global State
 const state = {
   year: '2026',
-  tab: 'suppliers', // 'suppliers', 'marketplace', 'direct', 'misa'
+  tab: 'suppliers', // 'suppliers', 'marketplace', 'direct'
   page: 1,
   limit: 20,
   search: '',
@@ -16,8 +15,7 @@ const state = {
   // Data caches
   kpi: null,
   suppliers: null,
-  directExpense: null,
-  misaData: null
+  directExpense: null
 };
 
 let searchDebounceTimeout = null;
@@ -303,9 +301,6 @@ async function renderActiveTab() {
     case 'marketplace':
       // Panel B static/cards already updated via renderKPI
       break;
-    case 'misa':
-      await renderMisa();
-      break;
   }
 }
 
@@ -412,89 +407,5 @@ async function renderDirectExpense() {
     }).join('');
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:28px; color:var(--rust);">Lỗi tải chi phí ngân hàng: ${escapeHtml(err.message)}</td></tr>`;
-  }
-}
-
-// -----------------------------------------------------------------------------
-// PANEL D: MISA BATCH SYNCHRONIZATION (MEETING 3)
-// -----------------------------------------------------------------------------
-async function renderMisa() {
-  const tbody = document.getElementById('tbody-misa');
-  if (!tbody) return;
-
-  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:28px; color:var(--ink-faint);">Đang kiểm tra các settlement chờ hạch toán MISA...</td></tr>`;
-
-  try {
-    const res = await fetchAPI('/api/misa/pending-settlements?batch_size=50');
-    state.misaData = res;
-
-    if (!res.data || res.data.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:28px; color:var(--green); font-weight:600;">✓ Tất cả giao dịch settlement đã được book lên MISA thành công!</td></tr>`;
-      return;
-    }
-
-    tbody.innerHTML = res.data.map(item => {
-      const channelTag = item.channel === 'tiktok' ? 'TikTok' : 'Shopee';
-      return `
-        <tr>
-          <td style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-soft);">${item.txn_id}</td>
-          <td><span style="font-size:11px; padding:2px 8px; background:#F4F3EE; border:1px solid var(--rule-strong); border-radius:100px; font-weight:600;">${channelTag}</span></td>
-          <td style="font-family:'IBM Plex Mono',monospace; font-size:12.5px; font-weight:500;">${item.order_id}</td>
-          <td class="gd-c">${formatVND(item.amount)}</td>
-          <td style="font-size:12px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace;">${formatDate(item.occurred_at, true)}</td>
-          <td style="text-align:center;">
-            <span style="font-size:11px; color:var(--rust); background:var(--rust-soft); padding:2px 8px; border-radius:100px; font-weight:600;">
-              Chờ hạch toán
-            </span>
-          </td>
-          <td style="text-align:center;">
-            <button class="btn-action-remind" onclick="markSingleMisaBooked('${item.txn_id}')">
-              Gắn cờ MISA
-            </button>
-          </td>
-        </tr>
-      `;
-    }).join('');
-  } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:28px; color:var(--rust);">Lỗi tải danh sách MISA: ${escapeHtml(err.message)}</td></tr>`;
-  }
-}
-
-async function triggerMisaBatchBooking(batchSize) {
-  if (!confirm(`Xác nhận hạch toán lô ${batchSize} giao dịch settlement này vào MISA và gắn cờ [misa_booking = true]?`)) {
-    return;
-  }
-
-  showToast('Đang tiến hành gắn cờ hạch toán MISA theo lô...', 'warning');
-  try {
-    const res = await fetch('/api/misa/mark-booked', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        txn_ids: Array.from({ length: batchSize }, (_, i) => `TXN-SETTLE-${Date.now()}-${i}`),
-        voucher_no: `PKT-MISA-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`
-      })
-    });
-
-    const json = await res.json();
-    showToast(`Hạch toán thành công! Số phiếu kế toán MISA: ${json.voucher_no}`);
-    renderMisa();
-  } catch (err) {
-    showToast(`Lỗi đồng bộ MISA: ${err.message}`, 'error');
-  }
-}
-
-async function markSingleMisaBooked(txnId) {
-  try {
-    const res = await fetch('/api/misa/mark-booked', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ txn_ids: [txnId] })
-    });
-    const json = await res.json();
-    showToast(`Đã hạch toán giao dịch ${txnId} vào MISA!`);
-    renderMisa();
-  } catch (err) {
-    showToast(`Lỗi: ${err.message}`, 'error');
   }
 }
