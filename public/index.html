@@ -306,21 +306,6 @@
 
     <!-- PANEL D: ĐỒNG BỘ MISA (MEETING 3) -->
     <div class="tab-panel" id="panel-misa">
-      <div class="simple-card" style="margin-bottom: 20px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-          <div>
-            <div style="font-family:'Fraunces',serif; font-size:18px; color:var(--ink); font-weight:480;">
-              Kiến trúc đồng bộ MISA Batch Processing (Phần 1 Meeting 3)
-            </div>
-            <div style="font-size:13px; color:var(--ink-soft); margin-top:4px;">
-              Giải quyết tắc nghẽn dữ liệu: Thay vì quét toàn bộ 30.000 dòng, chỉ bốc các lô <code>WHERE misa_booking IS FALSE</code> để hạch toán.
-            </div>
-          </div>
-          <button class="control primary" id="btn-trigger-misa-batch" onclick="triggerMisaBatchBooking(100)">
-            ⚡ Hạch toán Lô 100 giao dịch vào MISA
-          </button>
-        </div>
-      </div>
 
       <table class="ledger">
         <thead>
