@@ -1,0 +1,28 @@
+{
+  "name": "tax-expense-dashboard",
+  "version": "1.0.0",
+  "description": "Tax & Expense Control Dashboard for Verdency / Onesie - Action-oriented tax compliance and marketplace reconciliation",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "tax",
+    "dashboard",
+    "supabase",
+    "onesie",
+    "verdency",
+    "reconciliation",
+    "e-commerce",
+    "shopee",
+    "tiktok-shop",
+    "vietnam-tax"
+  ],
+  "author": "Verdency Tech Team",
+  "license": "ISC"
+}

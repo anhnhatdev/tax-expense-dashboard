@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tax & Expense Control Portal - Verdency / Onesie</title>
+  <meta name="description" content="Hệ thống kiểm soát hóa đơn đầu vào, giám sát chi phí và đối soát dòng tiền vận hành thương mại điện tử.">
+  
+  <!-- Modern Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js CDN for Gauge & Trend Charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Enterprise Stylesheet -->
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+
+  <div class="dashboard-container">
+
+    <!-- TOP HEADER -->
+    <header class="header-top">
+      <div class="brand-section">
+        <div class="brand-logo">V</div>
+        <div>
+          <div class="brand-title">
+            ONESIE / VERDENCY MANAGEMENT PORTAL
+            <span class="brand-badge">TAX & EXPENSE CONTROL</span>
+          </div>
+          <div class="brand-subtitle">Cổng Kiểm Soát Hóa Đơn Đầu Vào, Rủi Ro Thuế & Đối Soát Vận Hành Sàn TMĐT</div>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div class="live-status">
+          <div class="status-dot"></div>
+          <span>Supabase Live: <strong>ixxrefjiirhdzgwtbcvu</strong></span>
+        </div>
+
+        <div class="year-selector">
+          <label for="select-year">Kỳ kế toán:</label>
+          <select id="select-year">
+            <option value="2026" selected>Năm 2026 (Hiện hành)</option>
+            <option value="2025">Năm 2025</option>
+            <option value="2024">Năm 2024</option>
+            <option value="all">Toàn bộ các năm</option>
+          </select>
+        </div>
+
+        <button id="btn-export-csv" class="btn-header" title="Xuất file Excel CSV">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Xuất Báo Cáo
+        </button>
+
+        <button id="btn-refresh" class="btn-header btn-header-primary" title="Làm mới dữ liệu từ Supabase">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          Đồng Bộ
+        </button>
+      </div>
+    </header>
+
+    <!-- ACCOUNTING LAW & BALANCE PRINCIPLE BANNER -->
+    <section class="formula-banner">
+      <div class="formula-text">
+        <span>⚖️ <strong>Nguyên tắc Quyết toán Thuế Doanh nghiệp:</strong></span>
+        <span class="formula-highlight">∑ Dòng Tiền Chi Ra = ∑ Giá Trị Hóa Đơn GTGT + Hợp Đồng Dịch Vụ Hợp Lệ</span>
+      </div>
+      <div class="formula-warning">
+        Khoản chi không có chứng từ sẽ bị loại trừ chi phí khi tính thuế TNDN (truy thu 20% + phạt chậm nộp 0.03%/ngày).
+      </div>
+    </section>
+
+    <!-- EXECUTIVE KPI SUMMARY CARDS -->
+    <section class="kpi-grid">
+      <!-- Card 1: Tổng Dòng Tiền Chi Ra -->
+      <div class="kpi-card total">
+        <div class="kpi-header">
+          <span class="kpi-title">Tổng Dòng Tiền Chi Ra</span>
+          <span class="kpi-icon-pill">YTD</span>
+        </div>
+        <div class="kpi-value num-tabular" id="kpi-total-expense">0 ₫</div>
+        <div class="kpi-footer">
+          <span>Ngân hàng MBBank + Kho</span>
+          <span class="kpi-pill pill-indigo" id="kpi-total-transactions">0 giao dịch</span>
+        </div>
+      </div>
+
+      <!-- Card 2: Đã Có Chứng Từ -->
+      <div class="kpi-card documented">
+        <div class="kpi-header">
+          <span class="kpi-title">Đã Có Chứng Từ Hợp Lệ</span>
+          <span class="kpi-icon-pill">HĐ GTGT</span>
+        </div>
+        <div class="kpi-value num-tabular" id="kpi-documented-expense">0 ₫</div>
+        <div class="kpi-footer">
+          <span>Đạt chuẩn quyết toán</span>
+          <span class="kpi-pill pill-emerald" id="kpi-coverage-badge">0% che phủ</span>
+        </div>
+      </div>
+
+      <!-- Card 3: Chi Phí Thiếu Chứng Từ -->
+      <div class="kpi-card missing">
+        <div class="kpi-header">
+          <span class="kpi-title">Chi Phí Thiếu Chứng Từ</span>
+          <span class="kpi-icon-pill">CẦN XỬ LÝ</span>
+        </div>
+        <div class="kpi-value num-tabular" id="kpi-missing-expense">0 ₫</div>
+        <div class="kpi-footer">
+          <span>Chưa có Hóa đơn / Hợp đồng</span>
+          <span class="kpi-pill pill-rose" id="kpi-missing-percent">0% chi phí</span>
+        </div>
+      </div>
+
+      <!-- Card 4: Rủi Ro Thuế TNDN (20%) -->
+      <div class="kpi-card tax-risk">
+        <div class="kpi-header">
+          <span class="kpi-title">Rủi Ro Truy Thu Thuế TNDN (20%)</span>
+          <span class="kpi-icon-pill">XUẤT TOÁN</span>
+        </div>
+        <div class="kpi-value num-tabular" id="kpi-tax-risk">0 ₫</div>
+        <div class="kpi-footer">
+          <span>Chi phí ước tính bị phạt</span>
+          <span class="kpi-pill pill-rose">20% TNDN tạm tính</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- VISUAL SECTION: GAUGE & SOURCE BREAKDOWN -->
+    <section class="visual-section">
+      <!-- Left: Tax Coverage Gauge -->
+      <div class="chart-card">
+        <div class="chart-card-title">Tỷ Lệ Che Phủ Chứng Từ Thuế (Tax Coverage)</div>
+        <div class="chart-card-desc">Tỷ lệ giá trị chi tiêu đã có Hóa đơn GTGT hoặc Hợp đồng dịch vụ hợp pháp</div>
+        
+        <div class="gauge-wrapper">
+          <div class="gauge-canvas-container">
+            <canvas id="gaugeChart"></canvas>
+            <div class="gauge-center-text">
+              <div class="gauge-pct num-tabular" id="gauge-center-pct">0%</div>
+              <div class="gauge-label">Che Phủ HĐ</div>
+            </div>
+          </div>
+
+          <div class="gauge-legend">
+            <div class="legend-item">
+              <span><span class="legend-color green"></span> Đã có chứng từ:</span>
+              <strong class="num-tabular" id="legend-documented">0 ₫</strong>
+            </div>
+            <div class="legend-item">
+              <span><span class="legend-color red"></span> Chưa có chứng từ:</span>
+              <strong class="num-tabular" id="legend-missing">0 ₫</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Source Breakdown & Progress Bars -->
+      <div class="chart-card">
+        <div class="chart-card-title">Cơ Cấu Chi Phí & Tình Trạng Chứng Từ Theo Nguồn</div>
+        <div class="chart-card-desc">Giám sát 3 nhóm dòng tiền chi ra: Sao kê ngân hàng, Nhập kho nguyên phụ liệu và Ví sàn TMĐT</div>
+
+        <div class="source-bars-grid">
+          <!-- Item 1: Chi Ngân Hàng (F_Bank) -->
+          <div class="source-bar-item">
+            <div class="source-bar-header">
+              <span>🏦 Chi Ngân Hàng (F_Bank Transaction - Sao kê MBBank)</span>
+              <span id="bank-bar-amount" class="num-tabular" style="color: var(--accent-rose);">0 ₫</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill danger" id="bank-progress-fill" style="width: 0%;"></div>
+            </div>
+            <div class="source-bar-stats">
+              <span>Đã có chứng từ: <strong id="bank-doc-stat" class="num-tabular" style="color: var(--accent-emerald);">0 ₫</strong></span>
+              <span>Chưa có: <strong id="bank-missing-stat" class="num-tabular" style="color: var(--accent-rose);">0 ₫</strong> (<span id="bank-count-stat">0</span> giao dịch)</span>
+            </div>
+          </div>
+
+          <!-- Item 2: Nhập Kho (M_Inventory Log) -->
+          <div class="source-bar-item">
+            <div class="source-bar-header">
+              <span>📦 Mua Hàng Tồn Kho (M_Inventory Log - Vải, Phụ liệu may mặc)</span>
+              <span id="kho-bar-amount" class="num-tabular">0 ₫</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="kho-progress-fill" style="width: 0%;"></div>
+            </div>
+            <div class="source-bar-stats">
+              <span>Đã có chứng từ: <strong id="kho-doc-stat" class="num-tabular" style="color: var(--accent-emerald);">0 ₫</strong></span>
+              <span>Chưa có: <strong id="kho-missing-stat" class="num-tabular" style="color: var(--accent-rose);">0 ₫</strong> (<span id="kho-count-stat">0</span> phiếu nhập)</span>
+            </div>
+          </div>
+
+          <!-- Item 3: Ví Sàn & Vận Chuyển (F_Shipment_Wallet) -->
+          <div class="source-bar-item">
+            <div class="source-bar-header">
+              <span>🚚 Cấn Trừ Phí Vận Chuyển & Sàn (F_Shipment_Wallet - SPX Express)</span>
+              <span class="badge-channel" style="background: rgba(14, 165, 233, 0.15); color: #38BDF8; border: 1px solid rgba(14, 165, 233, 0.3);">671 Bản ghi</span>
+            </div>
+            <div class="source-bar-stats" style="margin-top: 6px;">
+              <span>Chi phí cấn trừ tự động qua tiền COD đơn hàng Shopee/TikTok Shop cần đối chiếu hóa đơn dịch vụ định kỳ</span>
+              <span style="color: var(--text-secondary);">Chu kỳ tuần / tháng</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACTION HUB SECTION ("NHÌN LÀ PHẢI BIẾT HÀNH ĐỘNG") -->
+    <section class="action-hub">
+      <div class="action-hub-header">
+        <div class="hub-title-row">
+          <div class="hub-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Trung Tâm Xử Lý Nghiệp Vụ ("Nhìn là phải biết Hành Động")
+          </div>
+          <div style="font-size: 12.5px; color: var(--text-secondary);" id="hub-summary-text">
+            Đang tải dữ liệu trực tiếp...
+          </div>
+        </div>
+        
+        <!-- Tabs Navigation -->
+        <nav class="tabs-nav" role="tablist">
+          <button class="tab-btn active" id="tab-btn-missing" data-tab="missing">
+            <span>🚨 Giao Dịch Thiếu Chứng Từ</span>
+            <span class="tab-badge badge-rose" id="badge-missing-count">...</span>
+          </button>
+
+          <button class="tab-btn" id="tab-btn-suppliers" data-tab="suppliers">
+            <span>🏢 Đối Soát Nhà Cung Cấp</span>
+            <span class="tab-badge badge-indigo" id="badge-suppliers-count">Top NCC</span>
+          </button>
+          
+          <button class="tab-btn" id="tab-btn-overdue" data-tab="overdue">
+            <span>⏱️ Đơn Sàn Quá Hạn (>4 Ngày)</span>
+            <span class="tab-badge badge-rose" id="badge-overdue-count">125</span>
+          </button>
+
+          <button class="tab-btn" id="tab-btn-lost" data-tab="lost">
+            <span>📦 Đơn Hoàn Nghi Thất Lạc</span>
+            <span class="tab-badge badge-amber" id="badge-lost-count">25</span>
+          </button>
+
+          <button class="tab-btn" id="tab-btn-unstocked" data-tab="unstocked">
+            <span>🏬 Hàng Về Chưa Nhập Kho Sapo</span>
+            <span class="tab-badge badge-sky" id="badge-unstocked-count">23</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- FILTER CONTROLS BAR -->
+      <div class="filter-bar" id="filter-bar">
+        <div class="search-box">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="input-search" placeholder="Tìm theo đối tác, nội dung ủy nhiệm chi, mã đơn, vận đơn...">
+        </div>
+
+        <div class="filter-group">
+          <!-- Source Filter (For Tab 1) -->
+          <select id="filter-source" class="filter-select">
+            <option value="all">Tất cả nguồn chi</option>
+            <option value="bank">Chỉ sao kê Ngân hàng (F_Bank)</option>
+            <option value="inventory">Chỉ Mua hàng nhập kho (M_Inventory)</option>
+          </select>
+
+          <!-- Min Amount Filter (For Tab 1) -->
+          <select id="filter-min-amount" class="filter-select">
+            <option value="0">Tất cả hạn mức</option>
+            <option value="5000000">Từ 5.000.000 ₫</option>
+            <option value="20000000">Ưu tiên lớn: Từ 20.000.000 ₫</option>
+            <option value="50000000">Trọng điểm: Từ 50.000.000 ₫</option>
+          </select>
+
+          <!-- Channel Filter (For Tabs 3, 4, 5) -->
+          <select id="filter-channel" class="filter-select" style="display: none;">
+            <option value="all">Tất cả kênh bán</option>
+            <option value="shopee">Kênh Shopee</option>
+            <option value="tiktok">Kênh TikTok Shop</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- TABLE CONTAINER -->
+      <div class="table-responsive">
+        <table class="data-table" id="main-table">
+          <thead id="table-head">
+            <!-- Populated dynamically per tab -->
+          </thead>
+          <tbody id="table-body">
+            <tr>
+              <td colspan="7" style="text-align: center; padding: 45px; color: var(--text-muted);">
+                Đang nạp dữ liệu kế toán từ Supabase...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- PAGINATION FOOTER -->
+      <div class="pagination-footer" id="pagination-bar">
+        <span id="pagination-info">Đang tải dữ liệu...</span>
+        <div class="pagination-controls">
+          <button class="page-btn" id="btn-prev-page" disabled>‹</button>
+          <span style="font-size: 13px; font-weight: 600; padding: 4px 12px;" id="page-display">Trang 1</span>
+          <button class="page-btn" id="btn-next-page" disabled>›</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- MODAL: GÁN HÓA ĐƠN GTGT (LINK INVOICE) -->
+  <div class="modal-overlay" id="modal-link-invoice">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">📄 Ghép Hóa Đơn GTGT Cho Khoản Chi</div>
+        <button class="btn-close" id="btn-close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 16px;">
+          <div style="font-size: 12px; color: var(--text-muted);">Khoản chi đang chọn:</div>
+          <div style="font-weight: 700; font-size: 14.5px; margin-top: 4px; color: #FFFFFF;" id="modal-txn-desc">...</div>
+          <div style="font-size: 18px; color: var(--accent-rose); font-weight: 800;" class="num-tabular" id="modal-txn-amount">0 ₫</div>
+        </div>
+
+        <div class="search-box" style="width: 100%; margin-bottom: 14px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="modal-search-invoice" placeholder="Tìm số hóa đơn, ký hiệu hoặc tên đơn vị phát hành...">
+        </div>
+
+        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">
+          Hóa đơn GTGT điện tử sẵn có từ cổng Thuế GDT (taxdoc.document):
+        </div>
+
+        <div id="modal-invoice-list" style="max-height: 280px; overflow-y: auto;">
+          <!-- Invoices populated dynamically -->
+        </div>
+
+        <!-- Matching Delta Box -->
+        <div id="modal-matching-delta" style="display: none; margin-top: 14px; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px;">
+          <!-- Populated when invoice selected -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-header" id="btn-cancel-link">Hủy</button>
+        <button class="btn-header btn-header-primary" id="btn-confirm-link" disabled>Xác Nhận Ghép Cặp</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: LẬP HỢP ĐỒNG ĐIỆN TỬ (E-CONTRACT) -->
+  <div class="modal-overlay" id="modal-create-contract">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">✍️ Khởi Tạo Hợp Đồng Dịch Vụ / Gia Công May</div>
+        <button class="btn-close" id="btn-close-contract-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+          Áp dụng cho các khoản chi cá nhân (thợ may gia công, sửa quần, dịch vụ livestream) không xuất được hóa đơn GTGT để hợp thức hóa chứng từ kế toán thuế.
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div>
+            <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">Mẫu hợp đồng áp dụng:</label>
+            <select id="contract-template-select" class="filter-select" style="width: 100%;">
+              <option value="labor">Hợp đồng giao khoán may mặc / hoàn thiện sản phẩm</option>
+              <option value="service">Hợp đồng thuê dịch vụ truyền thông / Livestream cá nhân</option>
+              <option value="repairs">Hợp đồng dịch vụ sửa chữa / gia công bao bì phụ liệu</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">Đối tác / Thợ nhận thanh toán:</label>
+            <input type="text" id="contract-party-name" class="filter-select" style="width: 100%; color: #FFFFFF;" readonly>
+          </div>
+
+          <div>
+            <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">Giá trị thù lao (VNĐ):</label>
+            <input type="text" id="contract-amount" class="filter-select" style="width: 100%; color: #FFFFFF; font-weight: 700;" readonly>
+          </div>
+
+          <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; color: #A7F3D0;">
+            Hệ thống sẽ tự động sinh liên kết ký điện tử không cần OTP để đối tác ký xác nhận trên điện thoại.
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-header" id="btn-cancel-contract">Đóng</button>
+        <button class="btn-header btn-header-primary" id="btn-submit-contract">Tạo & Sao Chép Link Ký</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: KHIẾU NẠI SÀN TMĐT (DISPUTE TICKET) -->
+  <div class="modal-overlay" id="modal-dispute-ticket">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">📋 Văn Bản Khiếu Nại Sàn Giữ Tiền Quá Hạn</div>
+        <button class="btn-close" id="btn-close-dispute-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 14px;">
+          Nội dung đã được chuẩn hóa theo quy chuẩn Seller Support Center. Bấm <strong>Sao Chép Văn Bản</strong> để dán trực tiếp vào cổng hỗ trợ sàn.
+        </div>
+
+        <textarea id="dispute-text-content" style="width: 100%; height: 180px; background: #080C15; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: #F1F5F9; padding: 12px; font-family: 'Inter', sans-serif; font-size: 12.5px; line-height: 1.6; resize: none; outline: none;"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-header" id="btn-cancel-dispute">Đóng</button>
+        <button class="btn-header btn-header-primary" id="btn-copy-dispute">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+          Sao Chép Văn Bản
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Core Dashboard Javascript -->
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>
