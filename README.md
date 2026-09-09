@@ -1,5 +1,7 @@
 # Tax & Expense Reconciliation Portal
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/anhnhatdev/tax-expense-dashboard)
+
 > **Hệ thống Kiểm soát Chi phí & Đối chiếu Chứng từ Thuế Đa Kênh**  
 > Nền tảng chuyên dụng cho doanh nghiệp thương mại điện tử (Shopee, TikTok Shop, Sapo) nhằm giám sát dòng tiền chi ra, tự động đối soát Hóa đơn GTGT / Hợp đồng điện tử và đồng bộ hạch toán kế toán MISA.
 
