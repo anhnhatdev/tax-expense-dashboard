@@ -2,12 +2,12 @@
   "name": "tax-expense-dashboard",
   "version": "1.0.0",
   "description": "Tax & Expense Control Dashboard for Verdency / Onesie - Action-oriented tax compliance and marketplace reconciliation",
-  "main": "server.js",
+  "main": "backend/server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
-    "test": "node tests/run_all_tests.js"
+    "start": "node backend/server.js",
+    "dev": "node --watch backend/server.js",
+    "test": "node backend/tests/run_all_tests.js"
   },
   "engines": {
     "node": ">=18.0.0"
