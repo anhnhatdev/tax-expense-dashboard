@@ -750,9 +750,17 @@ const server = http.createServer(async (req, res) => {
 
     const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+    const cacheControl = ext === '.html'
+      ? 'no-cache, no-store, must-revalidate'
+      : 'public, max-age=0, must-revalidate';
 
     const content = fs.readFileSync(filePath);
-    res.writeHead(200, { 'Content-Type': contentType });
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'Cache-Control': cacheControl,
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
     res.end(content);
 
   } catch (err) {
