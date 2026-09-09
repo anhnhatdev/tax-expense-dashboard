@@ -1,103 +1,156 @@
-# Tax & Expense Control Dashboard (Verdency / Onesie)
+# Tax & Expense Reconciliation Portal
 
-Action-oriented tax compliance, marketplace settlement reconciliation, and MISA integration dashboard for e-commerce (Shopee, TikTok Shop). Built with **pure Node.js (Zero external npm dependencies)** and modern responsive HTML5/CSS/JS.
-
----
-
-## 🚀 Cập Nhật Sau Meeting 3: Tối Ưu Kiến Trúc Dữ Liệu & Giao Diện
-
-1. **Giải Quyết Triệt Để Tắc Nghẽn Đồng Bộ MISA**:
-   - Thay vì quét toàn bộ 30.000 dòng settlement so sánh chéo với 28.000 dòng MISA, bảng `ar.settlements` được bổ sung cờ trạng thái `misa_booking boolean DEFAULT false` kèm Partial Index.
-   - Script SQL ETL bóc tách từ `raw_documents` sang `ar.settlements` được xác minh an toàn 100% (không bị ảnh hưởng hay ghi đè cờ).
-   - Cơ chế chạy theo lô nhỏ (Batch size 100 - 500 records) chỉ lấy các record chưa hạch toán (`misa_booking = false`).
-2. **Chuẩn Hóa Phân Loại Dòng Tiền - Chống Trùng Lặp Chi Phí (Double-Counting)**:
-   - **Nhóm 1 (Kho / COGS):** Map trực tiếp hóa đơn theo từng lần nhập kho và từng Nhà Cung Cấp cụ thể (Xuân Kỷ, Chí Cường, Phạm Phương, Chị Hoa...).
-   - **Nhóm 2 (Chi phí vận hành ngân hàng):** Chỉ map hóa đơn vào các khoản chi trực tiếp (`lv1 = 'Expense'`). **Loại trừ hoàn toàn các lệnh chuyển khoản trả nợ tiền mua hàng** (vì đã map ở Kho) và các giao dịch vốn / luân chuyển nội bộ.
-   - **Nhóm 3 (Cấn trừ sàn & vận chuyển):** Shopee, TikTok Shop, SPX cấn trừ trên doanh thu và xuất hóa đơn định kỳ tổng hợp theo tháng.
-3. **Cấu Trúc Giao Diện 3 Tầng (3-Tier Hierarchical Dashboard)**:
-   - **View 1 (Cốt lõi):** Đúng 3 con số: **Tổng tiền chi ra** (4.31 Tỷ VNĐ) | **Có chứng từ** (1.21 Tỷ VNĐ - 28.0%) | **Chênh lệch thiếu** (3.10 Tỷ VNĐ). Loại bỏ toàn bộ số liệu rườm rà (đơn hoàn, đơn chậm sàn, phạt 20%).
-   - **View 2 (Cơ cấu 3 nhóm):** Kho/COGS (2.58 Tỷ) | Chi phí vận hành (1.72 Tỷ) | Chi phí dịch vụ sàn (7.26 Triệu).
-   - **View 3 (Action Hub):** Danh sách NCC cần đòi nợ hóa đơn, chi phí trực tiếp thiếu chứng từ, hóa đơn tổng sàn theo tháng, và công cụ đồng bộ lô MISA.
+> **Hệ thống Kiểm soát Chi phí & Đối chiếu Chứng từ Thuế Đa Kênh**  
+> Nền tảng chuyên dụng cho doanh nghiệp thương mại điện tử (Shopee, TikTok Shop, Sapo) nhằm giám sát dòng tiền chi ra, tự động đối soát Hóa đơn GTGT / Hợp đồng điện tử và đồng bộ hạch toán kế toán MISA.
 
 ---
 
-## 🤖 Hướng Dẫn Nhanh Cho AI / Lập Trình Viên (Quick Start)
+## 📌 Tính Năng Cốt Lõi
 
-> **Dành cho AI Agent / Dev:** Dự án này được thiết kế **Zero-Dependency** (không cần cài đặt thư viện ngoài). Bất kỳ máy tính nào có Node.js >= 18 đều có thể khởi chạy ngay lập tức.
+1. **Kiến Trúc Đối Chiếu 3 Tầng (3-Tier Accounting Views):**
+   - **View 1 (Chỉ số chủ đạo):** Giám sát 3 con số trọng yếu: Tổng giá trị giao dịch thực chi, Tổng giá trị đã có chứng từ hợp lệ, và Chênh lệch thiếu cần bổ sung giải trình.
+   - **View 2 (Phân theo 3 nhóm chi phí):**
+     - *Nhóm 1 - Mua hàng tồn kho (COGS):* Dữ liệu bóc tách từ phiếu nhập kho Sapo/Lark (`v_nhap_kho`).
+     - *Nhóm 2 - Chi phí ngân hàng (Expense):* Chi phí vận hành một lần từ sao kê ngân hàng (`v_chi_ngan_hang` với `lv1 = 'Expense'`).
+     - *Nhóm 3 - Dịch vụ sàn & thu hộ (Marketplace COD):* Cước vận chuyển và cấn trừ ví tự động (SPX Express, Sapo Express).
+   - **View 3 (Tác nghiệp chi tiết):**
+     - Bảng phân tích công nợ hóa đơn theo từng Nhà Cung Cấp (COGS).
+     - Chi tiết từng khoản chi ngân hàng phát sinh một lần.
+     - Thống kê cấn trừ ví theo sàn & hãng vận chuyển.
+     - Quản lý lô giao dịch settlement chờ hạch toán MISA.
 
-### 1. Yêu Cầu Tiên Quyết
-- **Node.js**: Phiên bản `>= 18.0.0`
-- **Không cần chạy `npm install`** (Dự án dùng 100% thư viện chuẩn của Node.js: `node:http`, `node:fs`, `node:path`, `node:url` và native `fetch`).
+2. **Cơ Chế Chống Trùng Lặp Chi Phí (Anti Double-Counting Engine):**
+   - Tự động phân tách rành mạch giữa nghiệp vụ mua hàng nhập kho và lệnh chuyển khoản trả nợ trên ngân hàng.
+   - Triệt tiêu 100% rủi ro cộng dồn hai lần cùng một nghiệp vụ kinh tế.
 
-### 2. Các Bước Khởi Chạy (1 Lệnh)
+3. **Thiết Kế Sổ Cái Kế Toán Cao Cấp (Editorial Swiss Ledger Aesthetic):**
+   - Giao diện thiết kế theo phong cách sổ cái kế toán Thụy Sĩ cổ điển: nền giấy mộc ấm (`#EFF1EC`), viền kẻ chỉ tiêu (`#DEDDD3`), typography biên tập cao cấp (**Fraunces** serif kết hợp **IBM Plex Sans / Mono**).
+   - Hiển thị thanh tiến độ so sánh kép (Dual-bar comparison: Xanh dương Giao dịch & Xanh ngọc Chứng từ).
+
+4. **Kiến Trúc Tối Ưu Hiệu Năng & Zero-Dependency:**
+   - Xây dựng hoàn toàn bằng **Node.js nguyên bản (Zero external dependencies)**, khởi chạy ngay lập tức mà không cần cài đặt thêm thư viện npm nặng nề.
+   - Cơ chế bộ nhớ đệm thông minh (In-memory TTL Cache) đảm bảo thời gian phản hồi API dưới 10ms.
+
+---
+
+## 📂 Cấu Trúc Dự Án
+
+Dự án được quy hoạch tinh gọn thành 2 phân hệ rõ ràng:
+
+```text
+tax-expense-dashboard/
+├── frontend/                     # Toàn bộ giao diện người dùng (Client SPA)
+│   ├── css/
+│   │   └── dashboard.css         # Bộ stylesheet Editorial Swiss Ledger
+│   ├── js/
+│   │   └── dashboard.js          # Client-side API orchestration & DOM binding
+│   └── index.html                # Single Page Application
+│
+├── backend/                      # Toàn bộ máy chủ, dịch vụ dữ liệu & tài liệu
+│   ├── documents/                # Bộ tài liệu kiến trúc & đặc tả nghiệp vụ
+│   │   ├── 01_BUSINESS_REQUIREMENTS.md
+│   │   ├── 02_DATA_ARCHITECTURE_AND_MAPPING.md
+│   │   ├── 03_API_AND_INTEGRATION_SPEC.md
+│   │   ├── 04_SYSTEM_DESIGN_AND_ROADMAP.md
+│   │   └── 05_OPERATIONAL_GAP_ANALYSIS_AND_ACTION_ROADMAP.md
+│   ├── migrations/               # Script DDL SQL quản trị schema Supabase
+│   │   └── 20260909_add_misa_booking_to_settlements.sql
+│   ├── tests/                    # Bộ kiểm thử tự động toàn diện (18 test cases)
+│   │   ├── 01_accounting_logic.test.js
+│   │   ├── 02_database_integrity.test.js
+│   │   ├── 03_api_endpoints.test.js
+│   │   └── run_all_tests.js
+│   └── server.js                 # Máy chủ HTTP REST API & Static File Server
+│
+├── .env.example                  # Mẫu biến môi trường
+├── .gitignore                    # Danh sách loại trừ Git
+├── package.json                  # Cấu hình dự án & scripts thực thi
+├── render.yaml                   # File cấu hình Blueprint Deploy lên Render
+└── server.js                     # Root entrypoint chuyển tiếp vào backend
+```
+
+---
+
+## 🚀 Hướng Dẫn Cài Đặt & Khởi Chạy
+
+### 1. Yêu Cầu Môi Trường
+* **Node.js**: Phiên bản `>= 18.0.0`
+* **Không bắt buộc cài đặt package ngoài** (Sử dụng 100% built-in modules: `node:http`, `node:fs`, `node:path`, `node:test`).
+
+### 2. Khởi Chạy Nhanh Trong 1 Bước
 
 ```bash
-# 1. Clone mã nguồn
+# Clone mã nguồn
 git clone https://github.com/anhnhatdev/tax-expense-dashboard.git
 cd tax-expense-dashboard
 
-# 2. Khởi chạy máy chủ ngay lập tức
+# Khởi chạy máy chủ
 npm start
 ```
 
 Máy chủ sẽ lắng nghe tại: **`http://localhost:3000`**
 
-### 3. Kiểm Tra Trạng Thái Hoạt Động (Health Check)
+### 3. Kiểm Tra Sức Khỏe Máy Chủ (Health Check)
+
 ```bash
 curl http://localhost:3000/api/health
 ```
-Kết quả trả về mẫu:
+
+Kết quả phản hồi mẫu:
 ```json
-{"status":"ok","service":"tax-expense-dashboard","version":"1.0.0","port":3000,"database":"connected"}
+{
+  "status": "ok",
+  "service": "tax-expense-dashboard",
+  "version": "1.0.0",
+  "port": 3000,
+  "database": "connected",
+  "uptime_seconds": 42
+}
 ```
 
-### 4. Cấu Hình Môi Trường (Tùy Chọn)
-Hệ thống đã tích hợp sẵn giá trị mặc định để chạy ngay. Nếu muốn tùy chỉnh cổng hoặc database, copy file mẫu:
+### 4. Chạy Bộ Kiểm Thử Tự Động (Test Suite)
+
+Dự án tích hợp sẵn **18 bài kiểm thử toàn diện** (Bất biến kế toán, Tính toàn vẹn database, và Hợp đồng API):
+
 ```bash
-cp .env.example .env
-```
-Các biến trong `.env`:
-- `PORT`: Cổng máy chủ (mặc định: `3000`)
-- `SUPABASE_URL`: Đường dẫn Supabase API
-- `SUPABASE_SERVICE_KEY`: Service Role Key kết nối Supabase
-
----
-
-## 📂 Cấu Trúc Thư Mục
-
-```text
-tax-expense-dashboard/
-├── server.js            # Node.js backend (REST API, in-memory cache, static file server, MISA batch)
-├── package.json         # Cấu hình dự án & scripts (start, dev)
-├── .env.example         # Biến môi trường mẫu
-├── .gitignore           # File loại trừ cho git
-├── migrations/          # DDL migrations cho Supabase
-│   └── 20260909_add_misa_booking_to_settlements.sql # DDL cờ misa_booking & partial index
-├── public/              # Giao diện người dùng tĩnh
-│   ├── index.html       # Single-Page Dashboard 3 Tầng theo chuẩn Meeting 3
-│   ├── css/dashboard.css# Theme Dark/Light, Design System tokens, 3-tier card styles
-│   └── js/dashboard.js  # Script xử lý render 3 tầng, lọc nhóm, sync MISA batch
-└── documents/           # Tài liệu phân tích nghiệp vụ & kiến trúc dữ liệu
-    ├── 01_BUSINESS_REQUIREMENTS.md
-    ├── 02_DATA_ARCHITECTURE_AND_MAPPING.md
-    ├── 03_API_AND_INTEGRATION_SPEC.md
-    └── 04_SYSTEM_DESIGN_AND_ROADMAP.md
+npm test
 ```
 
 ---
 
-## 📡 Danh Sách API Chính
+## 📡 Danh Sách API Endpoints
 
-| Phương thức | Endpoint | Chức năng |
+| Method | Endpoint | Mô tả chức năng |
 |---|---|---|
-| `GET` | `/api/health` | Kiểm tra kết nối DB và trạng thái máy chủ |
-| `GET` | `/api/kpi?year=2026` | 3 chỉ số cốt lõi (View 1), 3 nhóm dòng tiền (View 2), trạng thái MISA |
-| `GET` | `/api/suppliers` | Bảng phân tích NCC cần đòi hóa đơn (Xuân Kỷ, Chí Cường, Phạm Phương...) |
-| `GET` | `/api/missing-docs?group=cogs\|direct\|marketplace` | Danh sách chi tiết chứng từ còn thiếu theo từng nhóm |
-| `GET` | `/api/misa/pending-settlements?batch_size=200` | Lấy lô settlements chưa hạch toán để đồng bộ sang MISA |
-| `POST` | `/api/misa/mark-booked` | Cập nhật cờ `misa_booking = true` sau khi MISA hạch toán thành công |
-| `GET` | `/api/documents` | Danh sách hóa đơn hợp lệ sẵn sàng ghép cặp |
-| `POST` | `/api/link-document` | Ghép chứng từ vào giao dịch ngân hàng / phiếu kho |
-| `POST` | `/api/create-econtract` | Sinh hợp đồng khoán giải trình chi phí |
-| `GET` | `/api/export-csv` | Xuất file CSV phục vụ kiểm toán / thanh tra thuế |
+| `GET` | `/api/health` | Kiểm tra trạng thái máy chủ và kết nối database |
+| `GET` | `/api/kpi?year=2026` | Trả về dữ liệu 3 tầng: View 1 (Tổng quan), View 2 (3 nhóm), Trạng thái MISA |
+| `GET` | `/api/suppliers?year=2026` | Danh sách Nhà Cung Cấp sắp xếp theo số tiền thiếu hóa đơn cần đòi |
+| `GET` | `/api/missing-docs?group={cogs\|direct\|marketplace}` | Danh sách chi tiết các giao dịch chưa có chứng từ hợp lệ |
+| `GET` | `/api/misa/pending-settlements?batch_size=200` | Lấy danh sách lô settlement chưa hạch toán để đồng bộ MISA |
+| `POST` | `/api/misa/mark-booked` | Cập nhật cờ `misa_booking = true` kèm số chứng từ kế toán MISA |
+| `GET` | `/api/documents?limit=50` | Danh sách Hóa đơn GTGT điện tử từ cổng thuế |
+| `GET` | `/api/export-csv?type=suppliers&year=2026` | Xuất file CSV giải trình đối soát thuế tương thích Microsoft Excel |
+| `GET` | `/api/alerts/overdue-payouts` | Cảnh báo đơn giao thành công quá 4 ngày chưa quyết toán về ví |
 
+---
+
+## ☁️ Hướng Dẫn Triển Khai Lên Cloud (Render Deployment)
+
+Dự án đã được cấu hình sẵn file [`render.yaml`](./render.yaml) để triển khai tự động dạng **Render Web Service**:
+
+1. Đẩy mã nguồn lên kho lưu trữ GitHub của bạn.
+2. Đăng nhập vào [Render Dashboard](https://dashboard.render.com).
+3. Chọn **New** $\rightarrow$ **Blueprint** và liên kết với repository này.
+4. Render sẽ tự động nhận diện cấu hình:
+   - **Runtime:** Node
+   - **Region:** Singapore
+   - **Build Command:** `npm install`
+   - **Start Command:** `npm start`
+   - **Health Check Path:** `/api/health`
+5. Nhấn **Apply**, ứng dụng sẽ tự động build và chạy với tên miền công khai dạng `https://tax-expense-dashboard.onrender.com`.
+
+---
+
+## ⚖️ Giấy Phép & Bản Quyền
+
+Phát triển và duy trì bởi **Verdency Tech Team**. Bản quyền thuộc về Verdency / Onesie Management. Giấy phép ISC.
