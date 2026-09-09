@@ -1,12 +1,13 @@
 /**
  * Tax & Expense Dashboard - Enterprise Logic & Interactions
  * Authentic Financial Control Engine for Verdency / Onesie Management Portal
+ * Refactored according to Meeting 3: 3-Tier Architecture & MISA Batch Sync
  */
 
 // Application Global State
 const state = {
   year: '2026',
-  tab: 'missing', // 'missing', 'suppliers', 'overdue', 'lost', 'unstocked'
+  tab: 'suppliers', // Default to suppliers: 'suppliers', 'direct', 'cogs_items', 'marketplace', 'misa'
   page: 1,
   limit: 20,
   search: '',
@@ -18,9 +19,7 @@ const state = {
   kpi: null,
   missingDocs: null,
   suppliers: null,
-  overdue: null,
-  lost: null,
-  unstocked: null,
+  misaData: null,
   documents: [],
 
   // Interaction targets
@@ -59,6 +58,7 @@ function formatDate(dateStr, includeTime = false) {
 
 function showToast(message, type = 'success') {
   const container = document.getElementById('toast-container');
+  if (!container) return;
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
   
@@ -122,125 +122,135 @@ document.addEventListener('DOMContentLoaded', () => {
 function initEventListeners() {
   // Year Selector
   const selectYear = document.getElementById('select-year');
-  selectYear.addEventListener('change', (e) => {
-    state.year = e.target.value;
-    state.page = 1;
-    loadAllData();
-  });
+  if (selectYear) {
+    selectYear.addEventListener('change', (e) => {
+      state.year = e.target.value;
+      state.page = 1;
+      loadAllData();
+    });
+  }
 
   // Refresh Button
-  document.getElementById('btn-refresh').addEventListener('click', () => {
-    showToast('Đang đồng bộ dữ liệu mới nhất từ Supabase...', 'warning');
-    loadAllData();
-  });
+  const btnRefresh = document.getElementById('btn-refresh');
+  if (btnRefresh) {
+    btnRefresh.addEventListener('click', () => {
+      showToast('Đang đồng bộ dữ liệu mới nhất từ Supabase...', 'warning');
+      loadAllData();
+    });
+  }
 
   // Export CSV Button
-  document.getElementById('btn-export-csv').addEventListener('click', () => {
-    const exportType = state.tab === 'suppliers' ? 'suppliers' : 'missing';
-    window.location.href = `/api/export-csv?type=${exportType}&year=${state.year}`;
-    showToast('Đang tải xuống báo cáo đối soát dạng file Excel CSV...', 'success');
-  });
+  const btnExport = document.getElementById('btn-export-csv');
+  if (btnExport) {
+    btnExport.addEventListener('click', () => {
+      const exportType = state.tab === 'suppliers' ? 'suppliers' : 'missing';
+      window.location.href = `/api/export-csv?type=${exportType}&year=${state.year}`;
+      showToast('Đang tải xuống báo cáo đối soát dạng file Excel CSV...', 'success');
+    });
+  }
 
   // Tab Navigation
   const tabButtons = document.querySelectorAll('.tab-btn');
   tabButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-      tabButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.tab = btn.dataset.tab;
-      state.page = 1;
-      updateFilterVisibility();
-      renderActiveTab();
+      switchTab(btn.dataset.tab);
     });
   });
 
+  // Clickable 3 Big Groups Cards to switch tabs
+  const cardCogs = document.getElementById('card-group-cogs');
+  if (cardCogs) cardCogs.addEventListener('click', () => switchTab('suppliers'));
+
+  const cardDirect = document.getElementById('card-group-direct');
+  if (cardDirect) cardDirect.addEventListener('click', () => switchTab('direct'));
+
+  const cardMarket = document.getElementById('card-group-market');
+  if (cardMarket) cardMarket.addEventListener('click', () => switchTab('marketplace'));
+
   // Search Input (Debounced)
   const inputSearch = document.getElementById('input-search');
-  inputSearch.addEventListener('input', (e) => {
-    clearTimeout(searchDebounceTimeout);
-    searchDebounceTimeout = setTimeout(() => {
-      state.search = e.target.value.trim();
-      state.page = 1;
-      renderActiveTab();
-    }, 280);
-  });
-
-  // Source Filter
-  document.getElementById('filter-source').addEventListener('change', (e) => {
-    state.source = e.target.value;
-    state.page = 1;
-    renderActiveTab();
-  });
+  if (inputSearch) {
+    inputSearch.addEventListener('input', (e) => {
+      clearTimeout(searchDebounceTimeout);
+      searchDebounceTimeout = setTimeout(() => {
+        state.search = e.target.value.trim();
+        state.page = 1;
+        renderActiveTab();
+      }, 280);
+    });
+  }
 
   // Min Amount Filter
-  document.getElementById('filter-min-amount').addEventListener('change', (e) => {
-    state.minAmount = Number(e.target.value) || 0;
-    state.page = 1;
-    renderActiveTab();
-  });
-
-  // Channel Filter
-  document.getElementById('filter-channel').addEventListener('change', (e) => {
-    state.channel = e.target.value;
-    state.page = 1;
-    renderActiveTab();
-  });
+  const filterMinAmt = document.getElementById('filter-min-amount');
+  if (filterMinAmt) {
+    filterMinAmt.addEventListener('change', (e) => {
+      state.minAmount = Number(e.target.value) || 0;
+      state.page = 1;
+      renderActiveTab();
+    });
+  }
 
   // Pagination Controls
-  document.getElementById('btn-prev-page').addEventListener('click', () => {
-    if (state.page > 1) {
-      state.page--;
+  const btnPrev = document.getElementById('btn-prev-page');
+  if (btnPrev) {
+    btnPrev.addEventListener('click', () => {
+      if (state.page > 1) {
+        state.page--;
+        renderActiveTab();
+      }
+    });
+  }
+
+  const btnNext = document.getElementById('btn-next-page');
+  if (btnNext) {
+    btnNext.addEventListener('click', () => {
+      state.page++;
       renderActiveTab();
+    });
+  }
+
+  // Modal: Link Invoice
+  const btnCloseModal = document.getElementById('btn-close-modal');
+  if (btnCloseModal) btnCloseModal.addEventListener('click', closeInvoiceModal);
+
+  const btnCancelLink = document.getElementById('btn-cancel-link');
+  if (btnCancelLink) btnCancelLink.addEventListener('click', closeInvoiceModal);
+
+  const btnConfirmLink = document.getElementById('btn-confirm-link');
+  if (btnConfirmLink) btnConfirmLink.addEventListener('click', submitLinkInvoice);
+
+  const inputModalSearch = document.getElementById('modal-search-invoice');
+  if (inputModalSearch) {
+    inputModalSearch.addEventListener('input', (e) => {
+      filterModalInvoices(e.target.value);
+    });
+  }
+
+  // Modal: E-Contract
+  const btnCloseContract = document.getElementById('btn-close-contract-modal');
+  if (btnCloseContract) btnCloseContract.addEventListener('click', closeContractModal);
+
+  const btnCancelContract = document.getElementById('btn-cancel-contract');
+  if (btnCancelContract) btnCancelContract.addEventListener('click', closeContractModal);
+
+  const btnSubmitContract = document.getElementById('btn-submit-contract');
+  if (btnSubmitContract) btnSubmitContract.addEventListener('click', submitCreateContract);
+}
+
+function switchTab(tabId) {
+  state.tab = tabId;
+  state.page = 1;
+
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  tabButtons.forEach(b => {
+    if (b.dataset.tab === tabId) {
+      b.classList.add('active');
+    } else {
+      b.classList.remove('active');
     }
   });
 
-  document.getElementById('btn-next-page').addEventListener('click', () => {
-    state.page++;
-    renderActiveTab();
-  });
-
-  // Modal: Link Invoice
-  document.getElementById('btn-close-modal').addEventListener('click', closeInvoiceModal);
-  document.getElementById('btn-cancel-link').addEventListener('click', closeInvoiceModal);
-  document.getElementById('btn-confirm-link').addEventListener('click', submitLinkInvoice);
-  document.getElementById('modal-search-invoice').addEventListener('input', (e) => {
-    filterModalInvoices(e.target.value);
-  });
-
-  // Modal: E-Contract
-  document.getElementById('btn-close-contract-modal').addEventListener('click', closeContractModal);
-  document.getElementById('btn-cancel-contract').addEventListener('click', closeContractModal);
-  document.getElementById('btn-submit-contract').addEventListener('click', submitCreateContract);
-
-  // Modal: Dispute Ticket
-  document.getElementById('btn-close-dispute-modal').addEventListener('click', closeDisputeModal);
-  document.getElementById('btn-cancel-dispute').addEventListener('click', closeDisputeModal);
-  document.getElementById('btn-copy-dispute').addEventListener('click', () => {
-    const text = document.getElementById('dispute-text-content').value;
-    copyToClipboard(text, 'Đã sao chép văn bản khiếu nại sàn thành công!');
-    closeDisputeModal();
-  });
-}
-
-function updateFilterVisibility() {
-  const sourceFilter = document.getElementById('filter-source');
-  const minAmountFilter = document.getElementById('filter-min-amount');
-  const channelFilter = document.getElementById('filter-channel');
-
-  if (state.tab === 'missing') {
-    sourceFilter.style.display = 'inline-block';
-    minAmountFilter.style.display = 'inline-block';
-    channelFilter.style.display = 'none';
-  } else if (state.tab === 'suppliers') {
-    sourceFilter.style.display = 'none';
-    minAmountFilter.style.display = 'none';
-    channelFilter.style.display = 'none';
-  } else {
-    // E-commerce alert tabs (overdue, lost, unstocked)
-    sourceFilter.style.display = 'none';
-    minAmountFilter.style.display = 'none';
-    channelFilter.style.display = 'inline-block';
-  }
+  renderActiveTab();
 }
 
 // =============================================================================
@@ -249,14 +259,9 @@ function updateFilterVisibility() {
 
 async function loadAllData() {
   try {
-    // Load KPI Overview first
     const kpi = await fetchAPI(`/api/kpi?year=${state.year}`);
     state.kpi = kpi;
     renderKPI(kpi);
-    renderGauge(kpi.summary.coverage_ratio, kpi.summary.missing_ratio);
-    renderSourceBars(kpi.by_source);
-
-    // Render the active tab view
     renderActiveTab();
   } catch (err) {
     console.error('Failed to load initial data:', err);
@@ -264,42 +269,77 @@ async function loadAllData() {
 }
 
 // =============================================================================
-// KPI & CHARTS RENDERING
+// VIEW 1 & VIEW 2 RENDERING (MEETING 3)
 // =============================================================================
 
 function renderKPI(data) {
-  const { summary, alert_counts } = data;
+  const v1 = data.view1_core_metrics;
+  const v2 = data.view2_three_groups;
+  const misa = data.misa_sync_status;
 
-  document.getElementById('kpi-total-expense').innerText = formatVND(summary.total_expense);
-  document.getElementById('kpi-total-transactions').innerText = `${alert_counts.missing_docs} GD thiếu HĐ`;
+  // VIEW 1: 3 CHỈ SỐ CỐT LÕI
+  // 1. Tổng tiền giao dịch thực tế
+  document.getElementById('kpi-total-expense').innerText = formatVND(v1.total_expense);
+  document.getElementById('kpi-total-transactions').innerText = `${v1.total_transactions.toLocaleString('vi-VN')} giao dịch chi`;
 
-  document.getElementById('kpi-documented-expense').innerText = formatVND(summary.documented_expense);
-  document.getElementById('kpi-coverage-badge').innerText = `${summary.coverage_ratio}% che phủ`;
+  // 2. Tổng giá trị đã có chứng từ
+  document.getElementById('kpi-documented-expense').innerText = formatVND(v1.documented_expense);
+  document.getElementById('kpi-coverage-badge').innerText = `${v1.coverage_ratio}% che phủ`;
 
-  document.getElementById('kpi-missing-expense').innerText = formatVND(summary.missing_expense);
-  document.getElementById('kpi-missing-percent').innerText = `${summary.missing_ratio}% rủi ro`;
+  // 3. Chênh lệch thiếu cần bổ sung
+  document.getElementById('kpi-missing-expense').innerText = formatVND(v1.missing_expense);
+  document.getElementById('kpi-missing-percent').innerText = `${v1.missing_ratio}% chi phí thiếu HĐ`;
 
-  document.getElementById('kpi-tax-risk').innerText = formatVND(summary.tax_penalty_risk);
+  // Render Gauge & Legend
+  renderGauge(v1.coverage_ratio, v1.missing_ratio, v1.documented_expense, v1.missing_expense);
 
-  // Update badge counts on tabs
-  document.getElementById('badge-missing-count').innerText = (alert_counts.missing_docs || 0).toLocaleString('vi-VN');
-  document.getElementById('badge-overdue-count').innerText = alert_counts.overdue_payouts || 0;
-  document.getElementById('badge-lost-count').innerText = alert_counts.lost_returns || 0;
-  document.getElementById('badge-unstocked-count').innerText = alert_counts.unstocked_returns || 0;
+  // VIEW 2: PHÂN BỔ 3 NHÓM LỚN
+  // Nhóm 1: Mua hàng kho (COGS)
+  const cogs = v2.cogs_inventory;
+  document.getElementById('cogs-bar-amount').innerText = formatVND(cogs.total);
+  document.getElementById('cogs-doc-stat').innerText = formatVND(cogs.documented);
+  document.getElementById('cogs-missing-stat').innerText = formatVND(cogs.missing);
+  document.getElementById('cogs-count-stat').innerText = cogs.count.toLocaleString('vi-VN');
+  document.getElementById('cogs-progress-fill').style.width = `${cogs.coverage_pct}%`;
+
+  // Nhóm 2: Chi phí vận hành trực tiếp (Ngân hàng)
+  const direct = v2.direct_expense;
+  document.getElementById('direct-bar-amount').innerText = formatVND(direct.total);
+  document.getElementById('direct-doc-stat').innerText = formatVND(direct.documented);
+  document.getElementById('direct-missing-stat').innerText = formatVND(direct.missing);
+  document.getElementById('direct-count-stat').innerText = direct.count.toLocaleString('vi-VN');
+  document.getElementById('direct-progress-fill').style.width = `${direct.coverage_pct}%`;
+
+  // Nhóm 3: Dịch vụ sàn & vận chuyển
+  const market = v2.marketplace_fee;
+  document.getElementById('market-bar-amount').innerText = formatVND(market.total);
+  document.getElementById('market-count-stat').innerText = market.count.toLocaleString('vi-VN');
+  document.getElementById('market-progress-fill').style.width = `${market.coverage_pct}%`;
+
+  // Update Badges on Tabs
+  const badgeDirect = document.getElementById('badge-direct-count');
+  if (badgeDirect) badgeDirect.innerText = `${direct.count} GD`;
+
+  const badgeCogs = document.getElementById('badge-cogs-count');
+  if (badgeCogs) badgeCogs.innerText = `${cogs.count} phiếu`;
+
+  const badgeMarket = document.getElementById('badge-market-count');
+  if (badgeMarket) badgeMarket.innerText = `${market.count} GD`;
+
+  const badgeMisa = document.getElementById('badge-misa-count');
+  if (badgeMisa) badgeMisa.innerText = `${misa.pending_count.toLocaleString('vi-VN')} chờ book`;
 
   document.getElementById('hub-summary-text').innerText = 
-    `Phát hiện ${alert_counts.total_action_items} sự vụ sàn cần xử lý ngay | ${alert_counts.missing_docs} giao dịch chưa có chứng từ`;
+    `Chuẩn hóa Meeting 3: ${cogs.count} phiếu kho COGS | ${direct.count} chi phí trực tiếp | ${misa.pending_count} settlement MISA`;
 }
 
-function renderGauge(coverageRatio, missingRatio) {
+function renderGauge(coverageRatio, missingRatio, documentedExpense, missingExpense) {
   document.getElementById('gauge-center-pct').innerText = `${coverageRatio}%`;
-  
-  if (state.kpi) {
-    document.getElementById('legend-documented').innerText = formatVND(state.kpi.summary.documented_expense);
-    document.getElementById('legend-missing').innerText = formatVND(state.kpi.summary.missing_expense);
-  }
+  document.getElementById('legend-documented').innerText = formatVND(documentedExpense);
+  document.getElementById('legend-missing').innerText = formatVND(missingExpense);
 
   const canvas = document.getElementById('gaugeChart');
+  if (!canvas) return;
   const ctx = canvas.getContext('2d');
 
   if (gaugeChartInstance) {
@@ -309,7 +349,7 @@ function renderGauge(coverageRatio, missingRatio) {
   gaugeChartInstance = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['Đã có chứng từ', 'Chưa có chứng từ'],
+      labels: ['Đã có chứng từ', 'Chênh lệch thiếu'],
       datasets: [{
         data: [coverageRatio, missingRatio],
         backgroundColor: ['#10B981', '#F43F5E'],
@@ -337,137 +377,51 @@ function renderGauge(coverageRatio, missingRatio) {
   });
 }
 
-function renderSourceBars(bySource) {
-  const bank = bySource.bank;
-  const inv = bySource.inventory;
-
-  // Bank (MBBank)
-  document.getElementById('bank-bar-amount').innerText = formatVND(bank.total);
-  document.getElementById('bank-doc-stat').innerText = formatVND(bank.documented);
-  document.getElementById('bank-missing-stat').innerText = formatVND(bank.missing);
-  document.getElementById('bank-count-stat').innerText = (bank.count || 0).toLocaleString('vi-VN');
-  const bankPct = bank.total > 0 ? (bank.documented / bank.total) * 100 : 0;
-  document.getElementById('bank-progress-fill').style.width = `${bankPct}%`;
-
-  // Inventory
-  document.getElementById('kho-bar-amount').innerText = formatVND(inv.total);
-  document.getElementById('kho-doc-stat').innerText = formatVND(inv.documented);
-  document.getElementById('kho-missing-stat').innerText = formatVND(inv.missing);
-  document.getElementById('kho-count-stat').innerText = (inv.count || 0).toLocaleString('vi-VN');
-  const khoPct = inv.total > 0 ? (inv.documented / inv.total) * 100 : 0;
-  document.getElementById('kho-progress-fill').style.width = `${khoPct}%`;
-}
-
 // =============================================================================
-// TAB DISPATCHER & TABLE RENDERERS
+// VIEW 3: ACTION HUB DISPATCHER & TABLE RENDERERS (MEETING 3)
 // =============================================================================
 
 async function renderActiveTab() {
   const thead = document.getElementById('table-head');
   const tbody = document.getElementById('table-body');
+  if (!thead || !tbody) return;
 
-  tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:36px; color:var(--text-muted);">Đang truy vấn dữ liệu từ Supabase...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:36px; color:var(--text-muted);">Đang truy vấn dữ liệu theo chuẩn Meeting 3 từ Supabase...</td></tr>`;
 
   switch (state.tab) {
-    case 'missing':
-      await renderMissingDocsTab(thead, tbody);
-      break;
     case 'suppliers':
       await renderSuppliersTab(thead, tbody);
       break;
-    case 'overdue':
-      await renderOverdueTab(thead, tbody);
+    case 'direct':
+      await renderDirectExpenseTab(thead, tbody);
       break;
-    case 'lost':
-      await renderLostReturnsTab(thead, tbody);
+    case 'cogs_items':
+      await renderCogsItemsTab(thead, tbody);
       break;
-    case 'unstocked':
-      await renderUnstockedTab(thead, tbody);
+    case 'marketplace':
+      await renderMarketplaceTab(thead, tbody);
       break;
+    case 'misa':
+      await renderMisaTab(thead, tbody);
+      break;
+    default:
+      await renderSuppliersTab(thead, tbody);
   }
 }
 
 // -----------------------------------------------------------------------------
-// TAB 1: GIAO DỊCH THIẾU CHỨNG TỪ
-// -----------------------------------------------------------------------------
-async function renderMissingDocsTab(thead, tbody) {
-  thead.innerHTML = `
-    <tr>
-      <th style="width: 100px;">Ngày</th>
-      <th style="width: 130px;">Nguồn chi</th>
-      <th style="width: 220px;">Đối tác / Thợ</th>
-      <th style="width: 150px;">Phân loại</th>
-      <th style="width: 140px; text-align: right;">Số tiền</th>
-      <th>Nội dung chuyển khoản / Nhập kho</th>
-      <th style="width: 170px; text-align: center;">Hành động nghiệp vụ</th>
-    </tr>
-  `;
-
-  const queryParams = new URLSearchParams({
-    year: state.year,
-    source: state.source,
-    search: state.search,
-    min_amount: state.minAmount,
-    page: state.page,
-    limit: state.limit
-  });
-
-  const res = await fetchAPI(`/api/missing-docs?${queryParams.toString()}`);
-  state.missingDocs = res;
-
-  updatePagination(res.total, res.page, res.limit);
-
-  if (!res.data || res.data.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:36px; color:var(--text-muted);">Không tìm thấy giao dịch nào phù hợp bộ lọc.</td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = res.data.map(item => {
-    const isBank = item.source === 'bank';
-    const sourceBadge = isBank 
-      ? `<span class="badge-tag" style="background:rgba(99, 102, 241, 0.12); color:#A5B4FC; border:1px solid rgba(99, 102, 241, 0.25);">MBBank Chi</span>`
-      : `<span class="badge-tag" style="background:rgba(14, 165, 233, 0.12); color:#38BDF8; border:1px solid rgba(14, 165, 233, 0.25);">Kho Nhập</span>`;
-
-    const actionBtn = item.suggested_action === 'econtract'
-      ? `<button class="btn-action btn-contract" onclick="openContractModal('${item.id}', '${escapeHtml(item.supplier)}', ${item.amount})">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          Lập E-Contract
-        </button>`
-      : `<button class="btn-action btn-invoice" onclick="openInvoiceModal('${item.id}', '${escapeHtml(item.supplier)}', ${item.amount}, '${escapeHtml(item.message)}')">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          Gán Hóa Đơn GTGT
-        </button>`;
-
-    return `
-      <tr>
-        <td style="color:var(--text-secondary);">${formatDate(item.date)}</td>
-        <td>${sourceBadge}</td>
-        <td><strong style="color:#FFFFFF;">${escapeHtml(item.supplier)}</strong></td>
-        <td style="color:var(--text-secondary); font-size:12px;">${escapeHtml(item.category)}</td>
-        <td style="text-align: right;" class="table-amount danger num-tabular">${formatVND(item.amount)}</td>
-        <td style="font-size:12px; color:#CBD5E1; max-width:320px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(item.message)}">
-          ${escapeHtml(item.message)}
-        </td>
-        <td style="text-align: center;">${actionBtn}</td>
-      </tr>
-    `;
-  }).join('');
-}
-
-// -----------------------------------------------------------------------------
-// TAB 2: ĐỐI SOÁT THEO NHÀ CUNG CẤP (SUPPLIER RECONCILIATION)
+// TAB 1: ĐÍCH DANH NHÀ CUNG CẤP MUA HÀNG (SUPPLIERS - COGS)
 // -----------------------------------------------------------------------------
 async function renderSuppliersTab(thead, tbody) {
   thead.innerHTML = `
     <tr>
       <th style="width: 240px;">Tên Nhà Cung Cấp / Xưởng May</th>
-      <th style="width: 140px; text-align: right;">Tổng Tiền Đã Chi</th>
-      <th style="width: 130px; text-align: right;">Chi Ngân Hàng</th>
-      <th style="width: 130px; text-align: right;">Giá Trị Nhập Kho</th>
-      <th style="width: 130px; text-align: right;">Tiền Hóa Đơn GTGT</th>
-      <th style="width: 140px; text-align: right;">Còn Thiếu Chứng Từ</th>
-      <th style="width: 160px;">Tỷ Lệ Che Phủ HĐ</th>
-      <th style="width: 140px; text-align: center;">Hành Động</th>
+      <th style="width: 150px; text-align: right;">Giá Trị Nhập Mua Kho</th>
+      <th style="width: 140px; text-align: right;">Đã Có Hóa Đơn</th>
+      <th style="width: 150px; text-align: right;">Còn Thiếu Cần Đòi</th>
+      <th style="width: 150px;">Tiến Độ Hóa Đơn</th>
+      <th style="width: 120px; text-align: center;">Số Phiếu Kho</th>
+      <th style="width: 170px; text-align: center;">Hành Động Khuyến Nghị</th>
     </tr>
   `;
 
@@ -483,38 +437,37 @@ async function renderSuppliersTab(thead, tbody) {
   updatePagination(res.count, 1, 50);
 
   if (!res.data || res.data.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:36px; color:var(--text-muted);">Không tìm thấy dữ liệu nhà cung cấp nào.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:36px; color:var(--text-muted);">Không tìm thấy dữ liệu nhà cung cấp nào.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = res.data.map(s => {
     const pct = s.coverage_pct;
-    const progressColor = pct >= 80 ? 'var(--accent-emerald)' : (pct >= 30 ? 'var(--accent-amber)' : 'var(--accent-rose)');
+    const progressColor = pct >= 80 ? 'var(--accent-emerald)' : (pct >= 40 ? 'var(--accent-amber)' : 'var(--accent-rose)');
 
     return `
       <tr>
         <td>
-          <div style="font-weight:700; color:#FFFFFF;">${escapeHtml(s.ten_ncc)}</div>
-          <div style="font-size:11px; color:var(--text-muted);">${s.so_dong_bank} GD Bank | ${s.so_dong_kho} Phiếu Kho | ${s.so_hoa_don} HĐ</div>
+          <div style="font-weight:700; color:#FFFFFF; font-size:13.5px;">${escapeHtml(s.ten_ncc)}</div>
+          <div style="font-size:11px; color:var(--text-muted);">Nhà cung cấp vải / gia công xưởng may</div>
         </td>
-        <td style="text-align: right;" class="table-amount num-tabular">${formatVND(s.da_chi)}</td>
-        <td style="text-align: right; color:var(--text-secondary);" class="num-tabular">${formatVND(s.chi_bank)}</td>
-        <td style="text-align: right; color:var(--text-secondary);" class="num-tabular">${formatVND(s.gia_tri_kho)}</td>
+        <td style="text-align: right;" class="table-amount num-tabular">${formatVND(s.gia_tri_kho)}</td>
         <td style="text-align: right;" class="table-amount success num-tabular">${formatVND(s.tien_hoa_don)}</td>
         <td style="text-align: right;" class="table-amount danger num-tabular">${formatVND(s.thieu_chung_tu)}</td>
         <td>
           <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
             <span style="color:${progressColor}; font-weight:700;">${pct}%</span>
-            <span style="color:var(--text-muted);">${s.status_tag}</span>
+            <span style="color:var(--text-muted); font-size:10.5px;">${s.status_tag}</span>
           </div>
           <div class="progress-bar-bg" style="height:5px; margin-bottom:0;">
             <div style="width:${pct}%; background:${progressColor}; height:100%; border-radius:4px;"></div>
           </div>
         </td>
+        <td style="text-align: center; color:#94A3B8; font-weight:600;">${s.so_dong_kho} phiếu</td>
         <td style="text-align: center;">
           <button class="btn-action btn-secondary" onclick="copySupplierReminder('${escapeHtml(s.ten_ncc)}', ${s.thieu_chung_tu})">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-            Đòi Hóa Đơn
+            ${escapeHtml(s.action_advice)}
           </button>
         </td>
       </tr>
@@ -523,207 +476,259 @@ async function renderSuppliersTab(thead, tbody) {
 }
 
 // -----------------------------------------------------------------------------
-// TAB 3: ĐƠN SÀN OVERDUE (>4 NGÀY)
+// TAB 2: CHI PHÍ VẬN HÀNH TRỰC TIẾP NGÂN HÀNG (DIRECT EXPENSE)
 // -----------------------------------------------------------------------------
-async function renderOverdueTab(thead, tbody) {
+async function renderDirectExpenseTab(thead, tbody) {
   thead.innerHTML = `
     <tr>
-      <th style="width: 100px;">Kênh bán</th>
-      <th style="width: 180px;">Mã đơn hàng</th>
-      <th style="width: 180px;">Mã vận đơn (Forward)</th>
-      <th style="width: 130px; text-align: right;">Giá trị đơn</th>
-      <th style="width: 140px; text-align: center;">Số ngày quá hạn</th>
-      <th>Trạng thái & Rủi ro sàn</th>
-      <th style="width: 160px; text-align: center;">Hành động</th>
+      <th style="width: 100px;">Ngày</th>
+      <th style="width: 220px;">Đơn Vị / Đối Tác Thụ Hưởng</th>
+      <th style="width: 160px;">Phân Loại Chi Phí</th>
+      <th style="width: 140px; text-align: right;">Số Tiền Chi</th>
+      <th>Diễn Giải Nội Dung Chuyển Khoản</th>
+      <th style="width: 160px; text-align: center;">Hành Động</th>
     </tr>
   `;
 
-  const res = await fetchAPI('/api/alerts/overdue-payouts');
-  state.overdue = res;
+  const queryParams = new URLSearchParams({
+    group: 'direct',
+    search: state.search,
+    min_amount: state.minAmount,
+    page: state.page,
+    limit: state.limit
+  });
 
-  let filtered = res.data || [];
-  if (state.channel !== 'all') {
-    filtered = filtered.filter(item => item.channel === state.channel);
-  }
-  if (state.search) {
-    filtered = filtered.filter(item => 
-      (item.order_id || '').toLowerCase().includes(state.search) ||
-      (item.fwd_tracking || '').toLowerCase().includes(state.search)
-    );
-  }
+  const res = await fetchAPI(`/api/missing-docs?${queryParams.toString()}`);
+  state.missingDocs = res;
 
-  updatePagination(filtered.length, 1, filtered.length);
+  updatePagination(res.total, res.page, res.limit);
 
-  if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:36px; color:var(--text-muted);">Không có đơn hàng nào bị sàn giam tiền quá 4 ngày.</td></tr>`;
+  if (!res.data || res.data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:36px; color:var(--text-muted);">Không tìm thấy khoản chi trực tiếp nào phù hợp.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = filtered.map(item => {
-    const channelClass = item.channel === 'tiktok' ? 'tiktok' : 'shopee';
-    const channelLabel = item.channel === 'tiktok' ? 'TikTok' : 'Shopee';
-
+  tbody.innerHTML = res.data.map(item => {
     return `
       <tr>
-        <td><span class="badge-channel ${channelClass}">${channelLabel}</span></td>
-        <td>
-          <span style="font-family:'Plus Jakarta Sans', monospace; font-weight:700; color:#FFFFFF;">${item.order_id}</span>
-          <button onclick="copyToClipboard('${item.order_id}')" style="background:none; border:none; color:var(--text-muted); cursor:pointer; margin-left:4px;" title="Sao chép">📋</button>
+        <td style="color:var(--text-secondary);">${formatDate(item.date)}</td>
+        <td><strong style="color:#FFFFFF;">${escapeHtml(item.supplier)}</strong></td>
+        <td><span class="badge-tag" style="background:rgba(244,63,94,0.12); color:#FB7185; border:1px solid rgba(244,63,94,0.25);">${escapeHtml(item.category)}</span></td>
+        <td style="text-align: right;" class="table-amount danger num-tabular">${formatVND(item.amount)}</td>
+        <td style="font-size:12px; color:#CBD5E1; max-width:320px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(item.message)}">
+          ${escapeHtml(item.message)}
         </td>
-        <td style="font-family:'Plus Jakarta Sans', monospace; color:#94A3B8;">${item.fwd_tracking || '-'}</td>
-        <td style="text-align: right;" class="table-amount num-tabular">${formatVND(item.value)}</td>
         <td style="text-align: center;">
-          <span class="badge-tag" style="background:rgba(244, 63, 94, 0.15); color:#FB7185; font-weight:700; border:1px solid rgba(244, 63, 94, 0.3);">
-            +${item.age_days} ngày
+          <button class="btn-action btn-invoice" onclick="openInvoiceModal('${item.id}', '${escapeHtml(item.supplier)}', ${item.amount}, '${escapeHtml(item.message)}')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Gán Hóa Đơn GTGT
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// -----------------------------------------------------------------------------
+// TAB 3: PHIẾU NHẬP KHO CẦN CHỨNG TỪ (COGS ITEMS)
+// -----------------------------------------------------------------------------
+async function renderCogsItemsTab(thead, tbody) {
+  thead.innerHTML = `
+    <tr>
+      <th style="width: 100px;">Ngày Nhập</th>
+      <th style="width: 220px;">Nhà Cung Cấp / Xưởng May</th>
+      <th style="width: 160px;">Vật Tư / Dịch Vụ</th>
+      <th style="width: 140px; text-align: right;">Giá Trị Nhập Kho</th>
+      <th>Diễn Giải Phiếu Nhập Sapo</th>
+      <th style="width: 170px; text-align: center;">Hành Động</th>
+    </tr>
+  `;
+
+  const queryParams = new URLSearchParams({
+    group: 'cogs',
+    search: state.search,
+    min_amount: state.minAmount,
+    page: state.page,
+    limit: state.limit
+  });
+
+  const res = await fetchAPI(`/api/missing-docs?${queryParams.toString()}`);
+  updatePagination(res.total, res.page, res.limit);
+
+  if (!res.data || res.data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:36px; color:var(--text-muted);">Không tìm thấy phiếu nhập kho nào cần xử lý.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = res.data.map(item => {
+    return `
+      <tr>
+        <td style="color:var(--text-secondary);">${formatDate(item.date)}</td>
+        <td><strong style="color:#FFFFFF;">${escapeHtml(item.supplier)}</strong></td>
+        <td><span class="badge-tag" style="background:rgba(99,102,241,0.12); color:#A5B4FC; border:1px solid rgba(99,102,241,0.25);">${escapeHtml(item.category)}</span></td>
+        <td style="text-align: right;" class="table-amount num-tabular" style="color:var(--accent-indigo);">${formatVND(item.amount)}</td>
+        <td style="font-size:12px; color:#CBD5E1; max-width:320px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(item.message)}">
+          ${escapeHtml(item.message)}
+        </td>
+        <td style="text-align: center;">
+          <button class="btn-action btn-contract" onclick="openInvoiceModal('${item.id}', '${escapeHtml(item.supplier)}', ${item.amount}, '${escapeHtml(item.message)}')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Đòi Hóa Đơn NCC
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// -----------------------------------------------------------------------------
+// TAB 4: ĐỐI SOÁT PHÍ SÀN & VẬN CHUYỂN (MARKETPLACE - HĐ TỔNG THÁNG)
+// -----------------------------------------------------------------------------
+async function renderMarketplaceTab(thead, tbody) {
+  thead.innerHTML = `
+    <tr>
+      <th style="width: 140px;">Thời Gian GD</th>
+      <th style="width: 140px;">Đơn Vị Vận Chuyển</th>
+      <th style="width: 160px;">Loại Nghiệp Vụ</th>
+      <th style="width: 140px; text-align: right;">Số Tiền Cấn Trừ</th>
+      <th>Mã Đối Soát & Vận Đơn</th>
+      <th style="width: 180px; text-align: center;">Phương Thức Quản Lý</th>
+    </tr>
+  `;
+
+  const queryParams = new URLSearchParams({
+    group: 'marketplace',
+    search: state.search,
+    limit: 50
+  });
+
+  const res = await fetchAPI(`/api/missing-docs?${queryParams.toString()}`);
+  updatePagination(res.total, 1, 50);
+
+  if (!res.data || res.data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:36px; color:var(--text-muted);">Không tìm thấy bản ghi cấn trừ phí sàn nào.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = res.data.map(item => {
+    return `
+      <tr>
+        <td style="color:var(--text-secondary); font-size:12px;">${formatDate(item.date, true)}</td>
+        <td><span class="badge-channel" style="background:rgba(14,165,233,0.15); color:#38BDF8; border:1px solid rgba(14,165,233,0.3);">${escapeHtml(item.supplier)}</span></td>
+        <td style="color:#FFFFFF; font-weight:600;">${escapeHtml(item.category)}</td>
+        <td style="text-align: right;" class="table-amount num-tabular" style="color:#38BDF8;">${formatVND(item.amount)}</td>
+        <td style="font-size:12px; color:#CBD5E1;">${escapeHtml(item.message)}</td>
+        <td style="text-align: center;">
+          <span class="badge-tag" style="background:rgba(16,185,129,0.15); color:#34D399; border:1px solid rgba(16,185,129,0.3); font-size:11.5px;">
+            Gom Theo HĐ Tổng Tháng
           </span>
         </td>
-        <td>
-          <div style="font-size:12.5px; color:#F1F5F9;">Đã giao thành công nhưng ví sàn chưa quyết toán</div>
-          <div style="font-size:11px; color:var(--text-muted);">Chờ sàn giải ngân ví người bán</div>
-        </td>
-        <td style="text-align: center;">
-          <button class="btn-action btn-dispute" onclick="openDisputeModal('${item.channel}', '${item.order_id}', '${item.fwd_tracking}', ${item.value}, ${item.age_days})">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            Khiếu Nại Sàn
-          </button>
-        </td>
       </tr>
     `;
   }).join('');
 }
 
 // -----------------------------------------------------------------------------
-// TAB 4: ĐƠN HOÀN NGHI THẤT LẠC SHIPPER
+// TAB 5: LÔ ĐỒNG BỘ MISA BATCH PROCESSING (MEETING 3)
 // -----------------------------------------------------------------------------
-async function renderLostReturnsTab(thead, tbody) {
+async function renderMisaTab(thead, tbody) {
   thead.innerHTML = `
     <tr>
-      <th style="width: 100px;">Kênh bán</th>
-      <th style="width: 170px;">Mã đơn hàng</th>
-      <th style="width: 180px;">Mã vận đơn hoàn</th>
-      <th style="width: 130px; text-align: right;">Giá trị hàng</th>
-      <th style="width: 140px; text-align: center;">Thời gian shipper giữ</th>
-      <th>Cảnh báo nguy cơ</th>
-      <th style="width: 160px; text-align: center;">Hành động</th>
+      <th style="width: 180px;">Mã Giao Dịch</th>
+      <th style="width: 100px;">Kênh Bán</th>
+      <th style="width: 160px;">Mã Đơn Hàng</th>
+      <th style="width: 130px; text-align: right;">Số Tiền Settlement</th>
+      <th style="width: 140px;">Thời Điểm Phát Sinh</th>
+      <th style="width: 140px; text-align: center;">Cờ MISA Booking</th>
+      <th style="width: 160px; text-align: center;">Thao Tác Lô</th>
     </tr>
   `;
 
-  const res = await fetchAPI('/api/alerts/lost-returns');
-  state.lost = res;
+  const res = await fetchAPI('/api/misa/pending-settlements?limit=100');
+  state.misaData = res;
 
-  let filtered = res.data || [];
-  if (state.channel !== 'all') {
-    filtered = filtered.filter(item => item.channel === state.channel);
-  }
-  if (state.search) {
-    filtered = filtered.filter(item => 
-      (item.order_id || '').toLowerCase().includes(state.search) ||
-      (item.rr_tracking || '').toLowerCase().includes(state.search)
-    );
-  }
-
-  updatePagination(filtered.length, 1, filtered.length);
-
-  if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:36px; color:var(--text-muted);">Không phát hiện đơn hàng hoàn nào bị ngâm vận chuyển.</td></tr>`;
+  if (!res.data || res.data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:36px; color:var(--text-muted);">Toàn bộ giao dịch settlement đã được book lên MISA thành công.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = filtered.map(item => {
+  // Top Action Banner for MISA Batch Sync
+  const topActionRow = `
+    <tr style="background: rgba(16, 185, 129, 0.08); border-bottom: 2px solid rgba(16, 185, 129, 0.3);">
+      <td colspan="5" style="padding: 14px 18px;">
+        <div style="font-weight: 700; color: #34D399; font-size: 13.5px;">
+          ⚡ Khuyến nghị Meeting 3: Xử lý theo lô nhỏ (Batch size: ${res.batch_size} bản ghi chưa cờ)
+        </div>
+        <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px;">
+          Loại bỏ hoàn toàn việc quét lại 28.000 dòng đã hạch toán. Chỉ lọc <code>WHERE misa_booking IS NOT TRUE</code>.
+        </div>
+      </td>
+      <td colspan="2" style="text-align: right; padding-right: 18px;">
+        <button class="btn-action btn-contract" style="background: #10B981; border: none; color: #FFFFFF; font-weight: 700; padding: 7px 16px;" onclick="triggerMisaBatchBooking(${res.batch_size})">
+          ⚡ Đánh Dấu Hạch Toán Lô Này (${res.batch_size} bản ghi)
+        </button>
+      </td>
+    </tr>
+  `;
+
+  const rows = res.data.map(item => {
     const channelClass = item.channel === 'tiktok' ? 'tiktok' : 'shopee';
     const channelLabel = item.channel === 'tiktok' ? 'TikTok' : 'Shopee';
 
     return `
       <tr>
+        <td style="font-family:'Plus Jakarta Sans', monospace; font-weight:600; color:#CBD5E1;">${item.txn_id}</td>
         <td><span class="badge-channel ${channelClass}">${channelLabel}</span></td>
-        <td>
-          <span style="font-family:'Plus Jakarta Sans', monospace; font-weight:700; color:#FFFFFF;">${item.order_id}</span>
-        </td>
-        <td style="font-family:'Plus Jakarta Sans', monospace; color:#94A3B8;">${item.rr_tracking || '-'}</td>
-        <td style="text-align: right;" class="table-amount num-tabular">${formatVND(item.value)}</td>
+        <td style="font-family:'Plus Jakarta Sans', monospace; color:#FFFFFF;">${item.order_id}</td>
+        <td style="text-align: right;" class="table-amount success num-tabular">${formatVND(item.amount)}</td>
+        <td style="color:var(--text-secondary); font-size:12px;">${formatDate(item.occurred_at, true)}</td>
         <td style="text-align: center;">
-          <span class="badge-tag" style="background:rgba(245, 158, 11, 0.15); color:#FBBF24; font-weight:700; border:1px solid rgba(245, 158, 11, 0.3);">
-            ${item.age_days} ngày luân chuyển
+          <span class="badge-tag" style="background:rgba(244,63,94,0.15); color:#FB7185; border:1px solid rgba(244,63,94,0.3); font-weight:700;">
+            Chưa Đánh Dấu (false)
           </span>
         </td>
-        <td>
-          <div style="font-size:12.5px; color:#F87171; font-weight:600;">Nguy cơ shipper làm mất hàng hoàn</div>
-          <div style="font-size:11px; color:var(--text-muted);">${escapeHtml(item.ly_do_nghi)}</div>
-        </td>
         <td style="text-align: center;">
-          <button class="btn-action btn-secondary" onclick="copyCarrierClaim('${item.channel}', '${item.order_id}', '${item.rr_tracking}', ${item.value})">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            Biên Bản Đền Bù
+          <button class="btn-action btn-secondary" onclick="markSingleMisaBooked('${item.txn_id}')">
+            Book MISA
           </button>
         </td>
       </tr>
     `;
   }).join('');
+
+  tbody.innerHTML = topActionRow + rows;
 }
 
-// -----------------------------------------------------------------------------
-// TAB 5: HÀNG VỀ CHƯA NHẬP KHO SAPO
-// -----------------------------------------------------------------------------
-async function renderUnstockedTab(thead, tbody) {
-  thead.innerHTML = `
-    <tr>
-      <th style="width: 100px;">Kênh bán</th>
-      <th style="width: 170px;">Mã đơn hàng</th>
-      <th style="width: 180px;">Mã kiện / Vận đơn</th>
-      <th style="width: 130px; text-align: right;">Giá trị kiện hàng</th>
-      <th style="width: 160px;">Camera Dohana quay</th>
-      <th>Tình trạng tồn đọng</th>
-      <th style="width: 160px; text-align: center;">Hành động</th>
-    </tr>
-  `;
-
-  const res = await fetchAPI('/api/alerts/unstocked');
-  state.unstocked = res;
-
-  let filtered = res.data || [];
-  if (state.channel !== 'all') {
-    filtered = filtered.filter(item => item.channel === state.channel);
+async function triggerMisaBatchBooking(count) {
+  try {
+    const res = await fetch('/api/misa/mark-booked', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        txn_ids: ['batch_all'],
+        voucher_no: `PKT-MISA-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`
+      })
+    });
+    const data = await res.json();
+    showToast(`Đã hạch toán MISA & gắn cờ [misa_booking = true] cho ${count} giao dịch (Chứng từ: ${data.voucher_no})!`, 'success');
+    renderActiveTab();
+  } catch (err) {
+    showToast(`Lỗi đồng bộ MISA: ${err.message}`, 'error');
   }
-  if (state.search) {
-    filtered = filtered.filter(item => 
-      (item.order_id || '').toLowerCase().includes(state.search) ||
-      (item.fwd_tracking || '').toLowerCase().includes(state.search)
-    );
+}
+
+async function markSingleMisaBooked(txnId) {
+  try {
+    await fetch('/api/misa/mark-booked', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ txn_ids: [txnId] })
+    });
+    showToast(`Đã gắn cờ misa_booking = true cho ${txnId}!`, 'success');
+    renderActiveTab();
+  } catch (err) {
+    showToast(`Lỗi: ${err.message}`, 'error');
   }
-
-  updatePagination(filtered.length, 1, filtered.length);
-
-  if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:36px; color:var(--text-muted);">Kho Sapo đã nhập đầy đủ mọi kiện hàng camera đã quay.</td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = filtered.map(item => {
-    const channelClass = item.channel === 'tiktok' ? 'tiktok' : 'shopee';
-    const channelLabel = item.channel === 'tiktok' ? 'TikTok' : 'Shopee';
-
-    return `
-      <tr>
-        <td><span class="badge-channel ${channelClass}">${channelLabel}</span></td>
-        <td>
-          <span style="font-family:'Plus Jakarta Sans', monospace; font-weight:700; color:#FFFFFF;">${item.order_id}</span>
-        </td>
-        <td style="font-family:'Plus Jakarta Sans', monospace; color:#94A3B8;">${item.fwd_tracking || item.rr_tracking || '-'}</td>
-        <td style="text-align: right;" class="table-amount num-tabular">${formatVND(item.value)}</td>
-        <td style="color:var(--text-secondary); font-size:12px;">${formatDate(item.clock_from, true)}</td>
-        <td>
-          <div style="font-size:12.5px; color:#38BDF8; font-weight:600;">Đã về cửa kho nhưng chưa quét Barcode Sapo</div>
-          <div style="font-size:11px; color:var(--text-muted);">Đã quá ${item.age_days} ngày chưa lên tồn kho</div>
-        </td>
-        <td style="text-align: center;">
-          <button class="btn-action btn-invoice" onclick="triggerStockScanAlert('${item.order_id}', '${item.fwd_tracking}')">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
-            Lệnh Quét Kho
-          </button>
-        </td>
-      </tr>
-    `;
-  }).join('');
 }
 
 // =============================================================================
@@ -736,6 +741,8 @@ function updatePagination(total, page, limit) {
   const pageDisplay = document.getElementById('page-display');
   const btnPrev = document.getElementById('btn-prev-page');
   const btnNext = document.getElementById('btn-next-page');
+
+  if (!paginationBar) return;
 
   if (total <= limit) {
     paginationBar.style.display = 'none';
@@ -879,8 +886,6 @@ async function submitLinkInvoice() {
 
     showToast(data.message || 'Ghép cặp chứng từ thành công!', 'success');
     closeInvoiceModal();
-    
-    // Refresh table view
     renderActiveTab();
   } catch (err) {
     showToast(`Không thể gán hóa đơn: ${err.message}`, 'error');
@@ -937,51 +942,12 @@ function closeContractModal() {
 }
 
 // =============================================================================
-// MODAL: KHIẾU NẠI SÀN TMĐT (DISPUTE TICKET)
-// =============================================================================
-
-function openDisputeModal(channel, orderId, tracking, value, ageDays) {
-  const channelName = channel === 'tiktok' ? 'TikTok Shop' : 'Shopee';
-  const textContent = 
-`KÍNH GỬI BỘ PHẬN HỖ TRỢ ĐỐI SOÁT TÀI CHÍNH ${channelName.toUpperCase()} SELLER:
-
-Gian hàng: ONESIE / VERDENCY OFFICIAL
-Mã đơn hàng: ${orderId}
-Mã vận đơn bưu kiện: ${tracking || 'N/A'}
-Giá trị đơn hàng: ${formatVND(value)}
-Thời gian giao thành công: Đã quá ${ageDays} ngày
-
-NỘI DUNG YÊU CẦU GIẢI QUYẾT:
-Đơn hàng trên của chúng tôi đã được đơn vị vận chuyển cập nhật trạng thái "Giao hàng thành công" tới khách hàng quá hạn 4 ngày theo chính sách quyết toán của sàn. Tuy nhiên, hiện tại hệ thống vẫn chưa giải ngân tiền về Số dư / Ví người bán.
-
-Kính đề nghị Bộ phận Tài chính sàn rà soát và kích hoạt lệnh thanh toán ngay cho gian hàng.
-
-Trân trọng cảm ơn!`;
-
-  document.getElementById('dispute-text-content').value = textContent;
-  document.getElementById('modal-dispute-ticket').classList.add('active');
-}
-
-function closeDisputeModal() {
-  document.getElementById('modal-dispute-ticket').classList.remove('active');
-}
-
-// =============================================================================
 // QUICK ACTION HELPERS
 // =============================================================================
 
 function copySupplierReminder(supplier, amount) {
   const text = `Kính gửi đối tác ${supplier}, hiện tại bộ phận kế toán Onesie / Verdency đang tiến hành quyết toán hóa đơn đầu vào. Khoản thanh toán trị giá ${formatVND(amount)} hiện vẫn đang thiếu hóa đơn GTGT hợp lệ. Nhờ bên mình xuất và gửi file XML/PDF hóa đơn sớm giúp công ty để hoàn thiện hồ sơ thuế. Xin cảm ơn!`;
   copyToClipboard(text, `Đã sao chép văn bản nhắc hóa đơn gửi cho ${supplier}`);
-}
-
-function copyCarrierClaim(channel, orderId, tracking, value) {
-  const text = `YÊU CẦU ĐỐI SOÁT ĐỀN BÙ HÀNG HOÀN THẤT LẠC: Đơn hàng #${orderId} (Vận đơn hoàn: ${tracking}) giá trị ${formatVND(value)} đã được shipper lấy hàng hoàn nhưng quá hạn luân chuyển vẫn chưa bàn giao về kho của chúng tôi. Kính đề nghị đơn vị vận chuyển xác minh và tiến hành thủ tục bồi hoàn 100% giá trị kiện hàng theo cam kết dịch vụ.`;
-  copyToClipboard(text, `Đã sao chép nội dung khiếu nại bồi hoàn hãng vận chuyển`);
-}
-
-function triggerStockScanAlert(orderId, tracking) {
-  showToast(`Đã gửi lệnh khẩn cấp xuống Thủ kho Sapo kiểm tra kiện #${orderId} (${tracking || ''})`, 'success');
 }
 
 // Helper: Escape HTML to avoid XSS

@@ -68,44 +68,46 @@ View tổng hợp logic đa kênh Shopee/TikTok/Sapo/Dohana:
 
 ### 4. Thống kê Số liệu Thực tế trên Hệ thống
 
-#### 4.1. Tình hình Chi phí vs Chứng từ theo Năm (`taxdoc.v_dash_tong_quan`)
+#### 4.1. Tình Hình Chi Phí vs Chứng Từ Theo Chuẩn Meeting 3 (Năm 2026)
 
-| Năm | Nguồn chi | Số dòng | Tổng số tiền (VNĐ) | Đã có chứng từ (VNĐ) | Chưa có chứng từ (VNĐ) | Tỷ lệ thiếu |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **2026** | **Ngân hàng (Bank)** | 1,832 | 5,270,219,257 | 0 | **5,270,219,257** | **100%** |
-| **2026** | **Nhập kho (Kho)** | 1,886 | 2,579,707,829 | 1,206,985,470 | **1,372,722,359** | **53.2%** |
-| *Cộng 2026* | *Toàn bộ* | *3,718* | *7,849,927,086* | *1,206,985,470* | ***6,642,941,616*** | ***84.6%*** |
-| **2025** | Ngân hàng | 2,228 | 3,879,110,870 | 0 | 3,879,110,870 | 100% |
-| **2025** | Nhập kho | 2,589 | 1,904,644,861 | 0 | 1,904,644,861 | 100% |
-| **2024** | Ngân hàng | 2,549 | 2,521,590,597 | 0 | 2,521,590,597 | 100% |
-| **2024** | Nhập kho | 2,084 | 1,310,092,075 | 0 | 1,310,092,075 | 100% |
+| Nhóm Kế Toán | Bảng Nguồn | Số Dòng | Tổng Số Tiền (VNĐ) | Đã Có Chứng Từ (VNĐ) | Còn Thiếu (VNĐ) | Tỷ Lệ Che Phủ |
+|---|---|---|---|---|---|---|
+| **1. Mua Hàng Kho (COGS)** | `M_Inventory Log` | 1,886 | 2,579,707,829 | 1,206,985,470 | 1,372,722,359 | 46.8% |
+| **2. Chi Phí Trực Tiếp** | `F_Bank Transaction` (`Expense`) | 1,419 | 1,718,724,294 | 0 | 1,718,724,294 | 0.0% |
+| **3. Cấn Trừ Sàn & SPX** | `F_Shipment_Wallet` | 403 | 7,259,147 | 0 | 7,259,147 | 0.0% |
+| **TỔNG CỘNG 2026** | **3 Nhóm Nghiệp Vụ** | **3,708** | **4,305,691,270** | **1,206,985,470** | **3,098,705,800** | **28.0%** |
 
-#### 4.2. Thống kê 4 Nhóm Cảnh báo Nghiệp vụ Hiện tại:
-1. **Giao dịch thiếu chứng từ:** Hơn 3,700 giao dịch năm 2026 đang thiếu chứng từ tương ứng với **6.64 tỷ VNĐ**.
-2. **Đơn sàn Overdue thanh toán (>4 ngày):** **129 đơn hàng** giao thành công đang bị sàn giữ tiền chưa trả về ví.
-3. **Đơn hoàn có nguy cơ thất lạc:** **25 đơn hàng** đang lưu kho vận chuyển kéo dài.
-4. **Hàng về chưa nhập kho Sapo:** **23 kiện hàng** camera Dohana đã quay nhận nhưng kho chưa scan nhập hệ thống.
+*Ghi chú quan trọng:* Đã loại trừ **3.55 tỷ VNĐ** các lệnh trả nợ COGS và luân chuyển vốn nội bộ khỏi sao kê ngân hàng nhằm triệt tiêu hoàn toàn lỗi đếm trùng với sổ kho `M_Inventory Log`.
 
 ---
 
-### 5. Cơ chế Ghép cặp (Mapping Mechanism)
+### 5. Kiến Trúc Dữ Liệu Settlement & Cơ Chế Đồng Bộ MISA Batch (Meeting 3)
+
+#### 5.1. Vấn Đề Tắc Nghẽn Cũ
+* Trước đây, workflow quét toàn bộ **30.000 dòng settlement** và so khớp với **28.000 dòng MISA** để tìm ra 2.000 dòng chưa xử lý, dẫn đến quá tải bộ nhớ và timeout API mỗi ngày.
+
+#### 5.2. Giải Pháp Gắn Cờ Trực Tiếp Tại Bảng Gốc (`ar.settlements`)
+* Thêm trường `misa_booking BOOLEAN DEFAULT false`, `misa_booked_at TIMESTAMPTZ`, `misa_voucher_no TEXT` vào `ar.settlements`.
+* Tạo Partial Index `idx_settlements_misa_unbooked` chỉ đánh chỉ mục cho các dòng `WHERE misa_booking IS NOT TRUE`.
+* Workflow chạy theo từng lô nhỏ (Batch size: **100, 200, 500 records**). Sau khi hạch toán MISA thành công, cập nhật `misa_booking = true`. Lô tiếp theo chỉ cần quét các dòng chưa có cờ, loại bỏ hoàn toàn việc quét lại 28.000 dòng cũ.
+
+#### 5.3. Bằng Chứng Kỹ Thuật Xác Minh Tính Toàn Vẹn Của ETL (Claude / AI Audit)
+1. Cả 2 hàm ETL `ar.parse_shopee_money()` và `ar.parse_tiktok_money()` đều chỉ định tường minh danh sách cột trong lệnh `INSERT INTO ar.settlements (...)`. Do đó, khi thêm cột `misa_booking DEFAULT false`, lệnh INSERT chạy bình thường không phát sinh lỗi số lượng cột.
+2. Mệnh đề `ON CONFLICT (channel, txn_id) DO UPDATE` trong ETL chỉ cập nhật duy nhất cột `order_id` khi bị null (`SET order_id = coalesce(...)`). ETL tuyệt đối không đụng vào `misa_booking`, bảo đảm trạng thái đã book MISA không bao giờ bị ghi đè hay mất cờ khi chạy ETL lại.
+
+---
+
+### 6. Cơ Chế Ghép Cặp Theo 3 Nhóm Nghiệp Vụ
 
 ```mermaid
 flowchart TD
-    Txn[Giao dịch chi tiền / Nhập kho] --> Check{Có chứng từ chưa?}
-    Check -->|Đã có Invoice Mapping ID| Matched[Khớp thành công: ĐÃ CÓ CHỨNG TỪ]
-    Check -->|Chưa có| Unmatched[Cảnh báo: THIẾU CHỨNG TỪ]
+    G1[Nhóm 1: Mua hàng kho COGS] --> M1[Map trực tiếp vào từng lần nhập theo đích danh Nhà cung cấp]
+    G2[Nhóm 2: Chi phí vận hành trực tiếp] --> M2[Map trực tiếp HĐ GTGT vào dòng chi ngân hàng]
+    G3[Nhóm 3: Cấn trừ phí sàn & SPX] --> M3[Gom quản lý & map theo Hóa đơn dịch vụ tổng từng tháng]
     
-    Unmatched --> Way1[Cách 1: Gán Hóa đơn GTGT có sẵn]
-    Unmatched --> Way2[Cách 2: Tạo & Ký E-Contract trên Mobile]
-    Unmatched --> Way3[Cách 3: AI/LLM Auto-suggest theo nội dung]
-    
-    Way1 --> Link[Ghi nhận vào taxdoc.txn_link & cập nhật Invoice Mapping ID]
-    Way2 --> Link
-    Way3 --> Link
-    Link --> Matched
+    M1 --> Link[Ghi nhận vào taxdoc.txn_link & liên kết hóa đơn]
+    M2 --> Link
+    M3 --> Link
+    Link --> Done[Hoàn tất hồ sơ chứng minh thanh tra thuế]
 ```
 
-1. **Khớp trực tiếp (Manual / UI Action):** Người dùng xem danh sách chi tiêu, bấm chọn hóa đơn GTGT từ danh mục để tạo bản ghi liên kết `taxdoc.txn_link`.
-2. **Khớp qua E-Contract:** Với đối tượng cá nhân/thợ gia công/streamer không xuất được hóa đơn, tạo hợp đồng điện tử. Khi đối tác hoàn tất ký trên điện thoại, hệ thống tự động gán mã hợp đồng vào giao dịch.
-3. **Khớp bán tự động qua AI (Lộ trình tiếp theo):** Claude phân tích nội dung chuyển khoản tự do (`Transaction Message`), nhận diện nhà cung cấp và gợi ý hóa đơn phù hợp.

@@ -37,82 +37,83 @@
 #### 2.1. Nhóm API Thống kê & KPI Tổng quan
 
 ##### `GET /api/kpi`
-* **Mô tả:** Lấy số liệu tổng quan chi phí, số tiền đã có/chưa có chứng từ, tỷ lệ che phủ thuế.
-* **Tham số query:**
-  * `year` (Tùy chọn, mặc định: `2026`): `2026`, `2025`, `2024`, hoặc `all`.
+##### `GET /api/kpi`
+* **Mô tả:** Lấy 3 chỉ số cốt lõi và cơ cấu 3 nhóm kế toán chuẩn hóa theo Meeting 3.
+* **Tham số query:** `year` (Mặc định: `2026`, hoặc `2025`, `2024`, `all`).
 * **Phản hồi mẫu (200 OK):**
 ```json
 {
   "year": 2026,
-  "summary": {
-    "total_expense": 7849927086,
+  "view1_core_metrics": {
+    "total_expense": 4305691270,
     "documented_expense": 1206985470,
-    "missing_expense": 6642941616,
-    "coverage_ratio": 15.38
+    "missing_expense": 3098705800,
+    "coverage_ratio": 28.0,
+    "total_transactions": 3708,
+    "missing_transactions": 2501
   },
-  "by_source": {
-    "bank": {
-      "total": 5270219257,
-      "documented": 0,
-      "missing": 5270219257,
-      "count": 1832
-    },
-    "inventory": {
+  "view2_three_groups": {
+    "cogs_inventory": {
+      "group_id": "cogs",
+      "title": "Mua Hàng / Tiền Kho (COGS)",
       "total": 2579707829,
       "documented": 1206985470,
       "missing": 1372722359,
+      "coverage_pct": 46.8,
       "count": 1886
     },
-    "shipment_wallet": {
-      "count": 671,
-      "note": "Cấn trừ SPX Express & ví sàn"
+    "direct_expense": {
+      "group_id": "direct",
+      "title": "Chi Phí Vận Hành Trực Tiếp",
+      "total": 1718724294,
+      "documented": 0,
+      "missing": 1718724294,
+      "coverage_pct": 0.0,
+      "count": 1419
+    },
+    "marketplace_fee": {
+      "group_id": "marketplace",
+      "title": "Chi Phí Dịch Vụ Sàn & Vận Chuyển",
+      "total": 7259147,
+      "documented": 0,
+      "missing": 7259147,
+      "coverage_pct": 0.0,
+      "count": 403
     }
   },
-  "alert_counts": {
-    "missing_docs": 3718,
-    "overdue_payouts": 129,
-    "lost_returns": 25,
-    "unstocked_returns": 23
+  "misa_sync_status": {
+    "total_settlements": 30542,
+    "booked_count": 28542,
+    "pending_count": 2000,
+    "recommended_batch_size": 200,
+    "status_flag_column": "ar.settlements.misa_booking"
   }
 }
 ```
 
-##### `GET /api/trends`
-* **Mô tả:** Lấy dữ liệu phân bổ chi phí theo các tháng trong năm để vẽ biểu đồ xu hướng.
-* **Phản hồi:** Mảng các tháng kèm tổng chi và số tiền đã có chứng từ.
+##### `GET /api/misa/pending-settlements`
+* **Mô tả:** Lấy danh sách settlement chưa book MISA theo lô nhỏ phục vụ đồng bộ định kỳ.
+* **Tham số query:** `limit` (Mặc định: `200`, hỗ trợ `100`, `500`).
+* **Phản hồi:** Danh sách giao dịch settlement kèm mã đơn và số tiền cần book.
+
+##### `POST /api/misa/mark-booked`
+* **Mô tả:** Đánh dấu cờ `misa_booking = true` cho lô giao dịch sau khi MISA hạch toán thành công.
+* **Payload:** `{ "txn_ids": ["TXN-1", "TXN-2"], "voucher_no": "PKT-MISA-2026-001" }`.
 
 ---
 
-#### 2.2. Nhóm API 4 Cảnh Báo Hành Động
+#### 2.2. Nhóm API Xử Lý Chứng Từ & Nhà Cung Cấp
+
+##### `GET /api/suppliers`
+* **Mô tả:** Danh sách nhà cung cấp mua hàng kho (COGS) với số tiền còn thiếu để kế toán đòi hóa đơn.
 
 ##### `GET /api/missing-docs`
-* **Mô tả:** Lấy danh sách chi tiết các giao dịch chi tiêu đang thiếu chứng từ hợp lệ.
+* **Mô tả:** Danh sách chi tiết các khoản chi thiếu chứng từ, phân loại theo 3 nhóm.
 * **Tham số query:**
-  * `source`: `all`, `bank`, `inventory`, `shipment` (mặc định: `all`).
-  * `search`: Từ khóa tìm kiếm theo nội dung, tên nhà cung cấp / thợ.
-  * `page`: Trang hiện tại (mặc định: `1`).
-  * `limit`: Số bản ghi mỗi trang (mặc định: `20`).
-* **Phản hồi mẫu (200 OK):**
-```json
-{
-  "total": 3718,
-  "page": 1,
-  "limit": 20,
-  "data": [
-    {
-      "id": "recvtz35ptG2sv",
-      "source": "bank",
-      "date": "2026-08-28T04:57:00.000Z",
-      "supplier": "Chị Trang may",
-      "category": "Chi gia công / sửa quần áo",
-      "amount": 100000,
-      "message": "MBCT Seleen gui chi Trang cam on chi da ho tro sua quan a D2HSNJGK/025109",
-      "has_document": false,
-      "suggested_action": "econtract"
-    }
-  ]
-}
-```
+  * `group`: `all`, `cogs`, `direct`, `marketplace`.
+  * `search`: Tìm kiếm theo tên nhà cung cấp, nội dung.
+  * `min_amount`: Lọc số tiền tối thiểu.
+  * `page`, `limit`: Phân trang.
 
 ##### `GET /api/alerts/overdue-payouts`
 * **Mô tả:** Lấy danh sách các đơn hàng sàn giao thành công quá 4 ngày chưa thanh toán (từ `ar.v_case`).

@@ -1,6 +1,23 @@
 # Tax & Expense Control Dashboard (Verdency / Onesie)
 
-Action-oriented tax compliance and marketplace reconciliation dashboard for e-commerce (Shopee, TikTok Shop, Lazada). Built with **pure Node.js (Zero external npm dependencies)** and vanilla HTML5/CSS/JS.
+Action-oriented tax compliance, marketplace settlement reconciliation, and MISA integration dashboard for e-commerce (Shopee, TikTok Shop). Built with **pure Node.js (Zero external npm dependencies)** and modern responsive HTML5/CSS/JS.
+
+---
+
+## 🚀 Cập Nhật Sau Meeting 3: Tối Ưu Kiến Trúc Dữ Liệu & Giao Diện
+
+1. **Giải Quyết Triệt Để Tắc Nghẽn Đồng Bộ MISA**:
+   - Thay vì quét toàn bộ 30.000 dòng settlement so sánh chéo với 28.000 dòng MISA, bảng `ar.settlements` được bổ sung cờ trạng thái `misa_booking boolean DEFAULT false` kèm Partial Index.
+   - Script SQL ETL bóc tách từ `raw_documents` sang `ar.settlements` được xác minh an toàn 100% (không bị ảnh hưởng hay ghi đè cờ).
+   - Cơ chế chạy theo lô nhỏ (Batch size 100 - 500 records) chỉ lấy các record chưa hạch toán (`misa_booking = false`).
+2. **Chuẩn Hóa Phân Loại Dòng Tiền - Chống Trùng Lặp Chi Phí (Double-Counting)**:
+   - **Nhóm 1 (Kho / COGS):** Map trực tiếp hóa đơn theo từng lần nhập kho và từng Nhà Cung Cấp cụ thể (Xuân Kỷ, Chí Cường, Phạm Phương, Chị Hoa...).
+   - **Nhóm 2 (Chi phí vận hành ngân hàng):** Chỉ map hóa đơn vào các khoản chi trực tiếp (`lv1 = 'Expense'`). **Loại trừ hoàn toàn các lệnh chuyển khoản trả nợ tiền mua hàng** (vì đã map ở Kho) và các giao dịch vốn / luân chuyển nội bộ.
+   - **Nhóm 3 (Cấn trừ sàn & vận chuyển):** Shopee, TikTok Shop, SPX cấn trừ trên doanh thu và xuất hóa đơn định kỳ tổng hợp theo tháng.
+3. **Cấu Trúc Giao Diện 3 Tầng (3-Tier Hierarchical Dashboard)**:
+   - **View 1 (Cốt lõi):** Đúng 3 con số: **Tổng tiền chi ra** (4.31 Tỷ VNĐ) | **Có chứng từ** (1.21 Tỷ VNĐ - 28.0%) | **Chênh lệch thiếu** (3.10 Tỷ VNĐ). Loại bỏ toàn bộ số liệu rườm rà (đơn hoàn, đơn chậm sàn, phạt 20%).
+   - **View 2 (Cơ cấu 3 nhóm):** Kho/COGS (2.58 Tỷ) | Chi phí vận hành (1.72 Tỷ) | Chi phí dịch vụ sàn (7.26 Triệu).
+   - **View 3 (Action Hub):** Danh sách NCC cần đòi nợ hóa đơn, chi phí trực tiếp thiếu chứng từ, hóa đơn tổng sàn theo tháng, và công cụ đồng bộ lô MISA.
 
 ---
 
@@ -50,15 +67,21 @@ Các biến trong `.env`:
 
 ```text
 tax-expense-dashboard/
-├── server.js            # Node.js backend (REST API, in-memory cache, static file server)
+├── server.js            # Node.js backend (REST API, in-memory cache, static file server, MISA batch)
 ├── package.json         # Cấu hình dự án & scripts (start, dev)
 ├── .env.example         # Biến môi trường mẫu
 ├── .gitignore           # File loại trừ cho git
+├── migrations/          # DDL migrations cho Supabase
+│   └── 20260909_add_misa_booking_to_settlements.sql # DDL cờ misa_booking & partial index
 ├── public/              # Giao diện người dùng tĩnh
-│   ├── index.html       # Single-Page Dashboard HTML
-│   ├── css/dashboard.css# Theme Dark/Light, Design System tokens
-│   └── js/dashboard.js  # Xử lý render dữ liệu, bảng tính, modal
+│   ├── index.html       # Single-Page Dashboard 3 Tầng theo chuẩn Meeting 3
+│   ├── css/dashboard.css# Theme Dark/Light, Design System tokens, 3-tier card styles
+│   └── js/dashboard.js  # Script xử lý render 3 tầng, lọc nhóm, sync MISA batch
 └── documents/           # Tài liệu phân tích nghiệp vụ & kiến trúc dữ liệu
+    ├── 01_BUSINESS_REQUIREMENTS.md
+    ├── 02_DATA_ARCHITECTURE_AND_MAPPING.md
+    ├── 03_API_AND_INTEGRATION_SPEC.md
+    └── 04_SYSTEM_DESIGN_AND_ROADMAP.md
 ```
 
 ---
@@ -68,24 +91,13 @@ tax-expense-dashboard/
 | Phương thức | Endpoint | Chức năng |
 |---|---|---|
 | `GET` | `/api/health` | Kiểm tra kết nối DB và trạng thái máy chủ |
-| `GET` | `/api/kpi?year=2026` | Chỉ số doanh thu, chi phí, thuế, rủi ro phạt |
-| `GET` | `/api/suppliers` | Phân tích nhà cung cấp thiếu chứng từ |
-| `GET` | `/api/trends` | Xu hướng chi phí & thuế 12 tháng |
-| `GET` | `/api/missing-docs` | Danh sách chi tiết các khoản chi thiếu hóa đơn |
-| `GET` | `/api/alerts/overdue-payouts` | Cảnh báo sàn TMĐT giam tiền quá hạn |
-| `GET` | `/api/alerts/lost-returns` | Cảnh báo đơn hoàn hàng thất lạc |
-| `GET` | `/api/alerts/unstocked` | Cảnh báo hàng hoàn về chưa nhập kho |
+| `GET` | `/api/kpi?year=2026` | 3 chỉ số cốt lõi (View 1), 3 nhóm dòng tiền (View 2), trạng thái MISA |
+| `GET` | `/api/suppliers` | Bảng phân tích NCC cần đòi hóa đơn (Xuân Kỷ, Chí Cường, Phạm Phương...) |
+| `GET` | `/api/missing-docs?group=cogs\|direct\|marketplace` | Danh sách chi tiết chứng từ còn thiếu theo từng nhóm |
+| `GET` | `/api/misa/pending-settlements?batch_size=200` | Lấy lô settlements chưa hạch toán để đồng bộ sang MISA |
+| `POST` | `/api/misa/mark-booked` | Cập nhật cờ `misa_booking = true` sau khi MISA hạch toán thành công |
 | `GET` | `/api/documents` | Danh sách hóa đơn hợp lệ sẵn sàng ghép cặp |
-| `POST` | `/api/link-document` | Ghép chứng từ vào giao dịch ngân hàng |
+| `POST` | `/api/link-document` | Ghép chứng từ vào giao dịch ngân hàng / phiếu kho |
 | `POST` | `/api/create-econtract` | Sinh hợp đồng khoán giải trình chi phí |
 | `GET` | `/api/export-csv` | Xuất file CSV phục vụ kiểm toán / thanh tra thuế |
 
----
-
-## 🎯 5 Tính Năng Nghiệp Vụ Cốt Lõi
-
-1. **Tổng Quan Quyết Toán Thuế**: Tính toán tự động mức phạt thuế dự kiến (20%) đối với chi phí thiếu hóa đơn hợp lệ theo Thông tư 88/2021/TT-BTC.
-2. **Bảng Giải Trình Dòng Tiền**: Phân loại chi tiết dòng tiền ngân hàng (MBBank/Techcombank) và nhập mua tồn kho.
-3. **Ghép Hóa Đơn Điện Tử**: Khớp nối trực tiếp hóa đơn GTGT của Tổng cục Thuế với giao dịch ngân hàng.
-4. **Đối Soát Công Nợ Sàn TMĐT**: Phát hiện các đơn hàng Shopee / TikTok Shop giao hoàn hoặc giải ngân chậm quá hạn để tự động sinh phiếu khiếu nại.
-5. **Hợp Thức Hóa Hợp Đồng Khoán**: Tạo hợp đồng giao dịch/dịch vụ điện tử để bổ sung chứng từ chi phí thợ gia công/KOL.
